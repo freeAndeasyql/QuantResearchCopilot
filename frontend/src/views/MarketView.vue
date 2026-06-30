@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { getStocks, type StockItem } from '../api/stocks'
+import { getStocks, getStockDetail, type StockItem } from '../api/stocks'
 
 const stocks = ref<StockItem[]>([])
 const keyword = ref('')
@@ -76,6 +76,25 @@ const nextPage = () => {
   }
 }
 
+// 选取股票
+const selectedStock = ref<StockItem | null>(null)
+const detailLoading = ref(false)
+const detailError = ref('')
+
+const selectStock = async (code: string) => {
+  detailLoading.value = true
+  detailError.value = ''
+
+  try {
+    const res = await getStockDetail(code)
+    selectedStock.value = res.data.data
+  } catch (err) {
+    detailError.value = '获取股票详情失败'
+  } finally {
+    detailLoading.value = false
+  }
+}
+
 watch([keyword, selectedIndustry], () => {
   currentPage.value = 1
 })
@@ -117,7 +136,7 @@ onMounted(() => {
       </thead>
 
       <tbody>
-        <tr v-for="stock in pagedStocks" :key="stock.code">
+        <tr v-for="stock in pagedStocks" :key="stock.code" @click="selectStock(stock.code)">
           <td>{{ stock.code }}</td>
           <td>{{ stock.name }}</td>
           <td>{{ stock.industry }}</td>
@@ -125,6 +144,22 @@ onMounted(() => {
         </tr>
       </tbody>
     </table>
+    <!-- 股票详情卡片 -->
+    <div class="detail-card">
+      <h2>股票详情</h2>
+
+      <p v-if="detailLoading">详情加载中...</p>
+      <p v-if="detailError" class="error">{{ detailError }}</p>
+
+      <div v-if="selectedStock && !detailLoading" class="detail-content">
+        <p>股票代码：{{ selectedStock.code }}</p>
+        <p>股票名称：{{ selectedStock.name }}</p>
+        <p>所属行业：{{ selectedStock.industry }}</p>
+        <p>最新价格：{{ selectedStock.latest_price }}</p>
+      </div>
+
+      <p v-if="!selectedStock && !detailLoading" class="empty">点击表格中的股票查看详情</p>
+    </div>
     <div v-if="!loading && filteredStocks.length" class="pagination">
       <button :disabled="currentPage === 1" @click="prevPage">上一页</button>
 
@@ -212,25 +247,57 @@ onMounted(() => {
     }
   }
   .pagination {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
 
-  button {
-    height: 32px;
-    padding: 0 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    background: #fff;
-    cursor: pointer;
+    button {
+      height: 32px;
+      padding: 0 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
 
-    &:disabled {
-      color: #9ca3af;
-      cursor: not-allowed;
-      background: #f3f4f6;
+      &:disabled {
+        color: #9ca3af;
+        cursor: not-allowed;
+        background: #f3f4f6;
+      }
     }
   }
-}
+
+  .stock-table {
+    tr {
+      cursor: pointer;
+
+      &:hover {
+        background: #f9fafb;
+      }
+    }
+  }
+
+  .detail-card {
+    margin-top: 24px;
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .detail-content {
+      display: grid;
+      gap: 8px;
+    }
+
+    p {
+      margin: 0;
+    }
+  }
 }
 </style>
