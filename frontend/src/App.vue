@@ -23,19 +23,35 @@ const checkHealth = async () => {
 
 <template>
   <div class="app">
-   <h1>Quant Research Copilot</h1>
+    <nav class="nav">
+      <RouterLink to="/">首页</RouterLink>
+      <RouterLink to="/market">股票行情</RouterLink>
+      <RouterLink to="/status">项目状态</RouterLink>
+    </nav>
 
-    <button @click="checkHealth">
-      检查后端状态
-    </button>
-
-    <p v-if="loading">请求中...</p>
-    <p v-else>后端状态：{{ status }}</p>
-    <p v-if="error">{{ error }}</p>
-
+    <RouterView />
   </div>
+   
 </template>
 
 <style scoped>
+.app {
+  min-height: 100vh;
+}
 
+.nav {
+  display: flex;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.nav a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.nav a.router-link-active {
+  font-weight: 700;
+}
 </style>
