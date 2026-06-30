@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { getStocks, type StockItem } from '../api/stocks'
 
 const stocks = ref<StockItem[]>([])
 const keyword = ref('')
 const selectedIndustry = ref('')
+const currentPage = ref(1)
+const pageSize = 5
 const loading = ref(false)
 const error = ref('')
 
@@ -26,6 +28,17 @@ const filteredStocks = computed(() => {
 
     return matchKeyword && matchIndustry
   })
+})
+
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil(filteredStocks.value.length / pageSize))
+})
+
+const pagedStocks = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  const end = start + pageSize
+
+  return filteredStocks.value.slice(start, end)
 })
 
 const hasFilter = computed(() => {
@@ -51,11 +64,26 @@ const clearFilter = () => {
   selectedIndustry.value = ''
 }
 
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value -= 1
+  }
+}
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value += 1
+  }
+}
+
+watch([keyword, selectedIndustry], () => {
+  currentPage.value = 1
+})
+
 onMounted(() => {
   fetchStocks()
 })
 </script>
-
 <template>
   <div class="market-page">
     <h1>股票行情</h1>
@@ -78,7 +106,7 @@ onMounted(() => {
     <p v-if="loading">加载中...</p>
     <p v-if="error" class="error">{{ error }}</p>
 
-    <table v-if="!loading && filteredStocks.length" class="stock-table">
+    <table v-if="!loading && pagedStocks.length" class="stock-table">
       <thead>
         <tr>
           <th>股票代码</th>
@@ -89,7 +117,7 @@ onMounted(() => {
       </thead>
 
       <tbody>
-        <tr v-for="stock in filteredStocks" :key="stock.code">
+        <tr v-for="stock in pagedStocks" :key="stock.code">
           <td>{{ stock.code }}</td>
           <td>{{ stock.name }}</td>
           <td>{{ stock.industry }}</td>
@@ -97,7 +125,13 @@ onMounted(() => {
         </tr>
       </tbody>
     </table>
+    <div v-if="!loading && filteredStocks.length" class="pagination">
+      <button :disabled="currentPage === 1" @click="prevPage">上一页</button>
 
+      <span>第 {{ currentPage }} / {{ totalPages }} 页</span>
+
+      <button :disabled="currentPage === totalPages" @click="nextPage">下一页</button>
+    </div>
     <p v-if="!loading && !filteredStocks.length" class="empty">暂无匹配股票</p>
   </div>
 </template>
@@ -177,5 +211,26 @@ onMounted(() => {
       font-weight: 700;
     }
   }
+  .pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+
+  button {
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+
+    &:disabled {
+      color: #9ca3af;
+      cursor: not-allowed;
+      background: #f3f4f6;
+    }
+  }
+}
 }
 </style>
