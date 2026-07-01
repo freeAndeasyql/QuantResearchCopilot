@@ -47,7 +47,7 @@ const fetchStocks = async () => {
     total.value = res.data.data.total
     selectedStock.value = null
   } catch (err) {
-    error.value = '获取股票列表失败'
+    error.value = err instanceof Error ? err.message : '获取股票列表失败'
   } finally {
     loading.value = false
   }
@@ -60,7 +60,7 @@ const fetchIndustries = async () => {
     const res = await getIndustries()
     industries.value = res.data.data
   } catch (err) {
-    error.value = '获取行业列表失败'
+    error.value = err instanceof Error ? err.message : '获取行业列表失败'
   }
 }
 
@@ -74,7 +74,7 @@ const selectStock = async (code: string) => {
     const res = await getStockDetail(code)
     selectedStock.value = res.data.data
   } catch (err) {
-    detailError.value = '获取股票详情失败'
+    detailError.value = err instanceof Error ? err.message : '获取股票详情失败'
   } finally {
     detailLoading.value = false
   }

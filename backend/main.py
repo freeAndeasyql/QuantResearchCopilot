@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from data.stocks import (
     filter_stocks,
@@ -7,7 +9,8 @@ from data.stocks import (
     list_industries,
     paginate_stocks,
 )
-from utils.response import success_response
+from utils.response import error_response, success_response
+
 
 app = FastAPI(title="Quant Research Copilot API")
 
@@ -24,6 +27,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 统一处理 HTTPException
+# 例如 raise HTTPException(status_code=404, detail="股票不存在")
+# 会被转换成 { code: 404, message: "股票不存在", data: None }
+@app.exception_handler(StarletteHTTPException)
+def http_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=error_response(code=exc.status_code, message=exc.detail),
+    )
 
 
 # 健康检查接口
