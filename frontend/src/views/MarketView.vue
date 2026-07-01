@@ -1,57 +1,48 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { getStocks, getStockDetail, type StockItem } from '../api/stocks'
+import { getIndustries, getStockDetail, getStocks, type StockItem } from '../api/stocks'
 
 const stocks = ref<StockItem[]>([])
+const industries = ref<string[]>([])
+const selectedStock = ref<StockItem | null>(null)
+
 const keyword = ref('')
 const selectedIndustry = ref('')
 const currentPage = ref(1)
+const total = ref(0)
+
 const pageSize = 5
+
 const loading = ref(false)
+const detailLoading = ref(false)
 const error = ref('')
-
-const industries = computed(() => {
-  return Array.from(new Set(stocks.value.map((stock) => stock.industry)))
-})
-
-const filteredStocks = computed(() => {
-  const value = keyword.value.trim().toLowerCase()
-
-  return stocks.value.filter((stock) => {
-    const matchKeyword =
-      !value ||
-      stock.code.toLowerCase().includes(value) ||
-      stock.name.toLowerCase().includes(value) ||
-      stock.industry.toLowerCase().includes(value)
-
-    const matchIndustry = !selectedIndustry.value || stock.industry === selectedIndustry.value
-
-    return matchKeyword && matchIndustry
-  })
-})
+const detailError = ref('')
 
 const totalPages = computed(() => {
-  return Math.max(1, Math.ceil(filteredStocks.value.length / pageSize))
-})
-
-const pagedStocks = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  const end = start + pageSize
-
-  return filteredStocks.value.slice(start, end)
+  return Math.max(1, Math.ceil(total.value / pageSize))
 })
 
 const hasFilter = computed(() => {
   return Boolean(keyword.value || selectedIndustry.value)
 })
 
+// 获取股票列表
+// 现在搜索、行业筛选、分页都交给后端处理
 const fetchStocks = async () => {
   loading.value = true
   error.value = ''
 
   try {
-    const res = await getStocks()
+    const res = await getStocks({
+      keyword: keyword.value,
+      industry: selectedIndustry.value,
+      page: currentPage.value,
+      page_size: pageSize,
+    })
+
     stocks.value = res.data.data
+    total.value = res.data.total
+    selectedStock.value = null
   } catch (err) {
     error.value = '获取股票列表失败'
   } finally {
@@ -59,28 +50,19 @@ const fetchStocks = async () => {
   }
 }
 
-const clearFilter = () => {
-  keyword.value = ''
-  selectedIndustry.value = ''
-}
-
-const prevPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value -= 1
+// 获取行业列表
+// 行业下拉框的数据来自后端 /api/industries
+const fetchIndustries = async () => {
+  try {
+    const res = await getIndustries()
+    industries.value = res.data.data
+  } catch (err) {
+    error.value = '获取行业列表失败'
   }
 }
 
-const nextPage = () => {
-  if (currentPage.value < totalPages.value) {
-    currentPage.value += 1
-  }
-}
-
-// 选取股票
-const selectedStock = ref<StockItem | null>(null)
-const detailLoading = ref(false)
-const detailError = ref('')
-
+// 获取单只股票详情
+// 点击表格行时调用
 const selectStock = async (code: string) => {
   detailLoading.value = true
   detailError.value = ''
@@ -95,14 +77,52 @@ const selectStock = async (code: string) => {
   }
 }
 
-watch([keyword, selectedIndustry], () => {
+// 清空搜索和行业筛选
+const clearFilter = () => {
+  keyword.value = ''
+  selectedIndustry.value = ''
+}
+
+// 上一页
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value -= 1
+  }
+}
+
+// 下一页
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value += 1
+  }
+}
+
+// 搜索词或行业变化时，回到第一页并重新请求后端
+const resetPageAndFetch = () => {
+  if (currentPage.value === 1) {
+    fetchStocks()
+    return
+  }
+
   currentPage.value = 1
+}
+
+// 监听搜索和行业变化
+watch([keyword, selectedIndustry], () => {
+  resetPageAndFetch()
+})
+
+// 监听页码变化
+watch(currentPage, () => {
+  fetchStocks()
 })
 
 onMounted(() => {
+  fetchIndustries()
   fetchStocks()
 })
 </script>
+
 <template>
   <div class="market-page">
     <h1>股票行情</h1>
@@ -120,12 +140,12 @@ onMounted(() => {
       <button v-if="hasFilter" class="clear-button" @click="clearFilter">清空筛选</button>
     </div>
 
-    <p class="summary">当前显示 {{ filteredStocks.length }} / {{ stocks.length }} 只股票</p>
+    <p class="summary">当前显示 {{ stocks.length }} / {{ total }} 只股票</p>
 
     <p v-if="loading">加载中...</p>
     <p v-if="error" class="error">{{ error }}</p>
 
-    <table v-if="!loading && pagedStocks.length" class="stock-table">
+    <table v-if="!loading && stocks.length" class="stock-table">
       <thead>
         <tr>
           <th>股票代码</th>
@@ -136,7 +156,7 @@ onMounted(() => {
       </thead>
 
       <tbody>
-        <tr v-for="stock in pagedStocks" :key="stock.code" @click="selectStock(stock.code)">
+        <tr v-for="stock in stocks" :key="stock.code" @click="selectStock(stock.code)">
           <td>{{ stock.code }}</td>
           <td>{{ stock.name }}</td>
           <td>{{ stock.industry }}</td>
@@ -144,7 +164,17 @@ onMounted(() => {
         </tr>
       </tbody>
     </table>
-    <!-- 股票详情卡片 -->
+
+    <div v-if="!loading && total > 0" class="pagination">
+      <button :disabled="currentPage === 1" @click="prevPage">上一页</button>
+
+      <span>第 {{ currentPage }} / {{ totalPages }} 页</span>
+
+      <button :disabled="currentPage === totalPages" @click="nextPage">下一页</button>
+    </div>
+
+    <p v-if="!loading && !stocks.length" class="empty">暂无匹配股票</p>
+
     <div class="detail-card">
       <h2>股票详情</h2>
 
@@ -160,14 +190,6 @@ onMounted(() => {
 
       <p v-if="!selectedStock && !detailLoading" class="empty">点击表格中的股票查看详情</p>
     </div>
-    <div v-if="!loading && filteredStocks.length" class="pagination">
-      <button :disabled="currentPage === 1" @click="prevPage">上一页</button>
-
-      <span>第 {{ currentPage }} / {{ totalPages }} 页</span>
-
-      <button :disabled="currentPage === totalPages" @click="nextPage">下一页</button>
-    </div>
-    <p v-if="!loading && !filteredStocks.length" class="empty">暂无匹配股票</p>
   </div>
 </template>
 
@@ -245,7 +267,16 @@ onMounted(() => {
       background: #f8fafc;
       font-weight: 700;
     }
+
+    tr {
+      cursor: pointer;
+
+      &:hover {
+        background: #f9fafb;
+      }
+    }
   }
+
   .pagination {
     display: flex;
     align-items: center;
@@ -264,16 +295,6 @@ onMounted(() => {
         color: #9ca3af;
         cursor: not-allowed;
         background: #f3f4f6;
-      }
-    }
-  }
-
-  .stock-table {
-    tr {
-      cursor: pointer;
-
-      &:hover {
-        background: #f9fafb;
       }
     }
   }

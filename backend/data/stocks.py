@@ -22,3 +22,25 @@ def list_stocks():
 # 根据股票代码查单只股票
 def find_stock_by_code(code: str):
     return next((stock for stock in MOCK_STOCKS if stock["code"] == code), None)
+
+# 根据关键字和行业筛选股票
+def filter_stocks(keyword: str = None, industry: str = None):
+    value = keyword.strip().lower()
+    result = MOCK_STOCKS
+    if value:
+        result = [stock for stock in result if value in stock["name"].lower() or value in stock["code"] or value in stock["industry"].lower()]
+    if industry:
+        result = [stock for stock in result if stock["industry"].lower() == industry.strip().lower()]
+    return result
+
+# 对股票列表进行分页
+def paginate_stocks(stocks, page: int = 1, page_size: int = 10):
+    start = (page - 1) * page_size
+    end = start + page_size
+    return stocks[start:end]
+
+# 获取所有行业选项
+def list_industries():
+    # set 用来去重
+    # sorted 用来排序，让返回结果更稳定
+    return sorted(set(stock["industry"] for stock in MOCK_STOCKS))
