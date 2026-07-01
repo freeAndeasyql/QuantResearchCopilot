@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import StockPriceChart from '../components/StockPriceChart.vue'
+
 import {
   getIndustries,
   getStockDetail,
@@ -215,24 +217,9 @@ onMounted(() => {
 
       <p v-if="!selectedStock && !detailLoading" class="empty">点击表格中的股票查看详情</p>
     </div>
-    <div v-if="stockPrices.length" class="price-list">
-      <h3>最近价格</h3>
-
-      <table>
-        <thead>
-          <tr>
-            <th>交易日期</th>
-            <th>收盘价</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          <tr v-for="price in stockPrices" :key="price.trade_date">
-            <td>{{ price.trade_date }}</td>
-            <td>{{ price.close }}</td>
-          </tr>
-        </tbody>
-      </table>
+    <div v-if="stockPrices.length" class="price-chart-section">
+      <h3>价格走势</h3>
+      <StockPriceChart :prices="stockPrices" />
     </div>
 
     <p v-if="selectedStock && !stockPrices.length && !detailLoading" class="empty">
@@ -369,28 +356,12 @@ onMounted(() => {
     }
   }
 
-  .price-list {
+  .price-chart-section {
     margin-top: 16px;
 
     h3 {
       margin: 0 0 8px;
       font-size: 16px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    th,
-    td {
-      padding: 8px;
-      border: 1px solid #e5e7eb;
-      text-align: left;
-    }
-
-    th {
-      background: #f8fafc;
     }
   }
 }
