@@ -43,8 +43,8 @@ const fetchStocks = async () => {
       page_size: pageSize,
     })
 
-    stocks.value = res.data.data
-    total.value = res.data.total
+    stocks.value = res.data.data.list
+    total.value = res.data.data.total
     selectedStock.value = null
   } catch (err) {
     error.value = '获取股票列表失败'

@@ -1,5 +1,11 @@
 import { request } from './request'
 
+export interface ApiResponse<T> {
+  code: number
+  message: string
+  data: T
+}
+
 export interface StockItem {
   code: string
   name: string
@@ -14,26 +20,25 @@ export interface StockListParams {
   page_size?: number
 }
 
-export interface StockListResponse {
-  data: StockItem[]
+export interface StockPageData {
+  list: StockItem[]
   total: number
   page: number
   page_size: number
 }
 
 // 获取股票列表
-// 支持 keyword、industry、page、page_size 参数
+// 后端会返回统一结构：{ code, message, data }
 export const getStocks = (params: StockListParams) => {
-  return request.get<StockListResponse>('/api/stocks', { params })
+  return request.get<ApiResponse<StockPageData>>('/api/stocks', { params })
 }
 
 // 获取单只股票详情
 export const getStockDetail = (code: string) => {
-  return request.get<{ data: StockItem }>(`/api/stocks/${code}`)
+  return request.get<ApiResponse<StockItem>>(`/api/stocks/${code}`)
 }
 
 // 获取行业列表
-// 用于股票行情页的行业下拉框
 export const getIndustries = () => {
-  return request.get<{ data: string[] }>('/api/industries')
+  return request.get<ApiResponse<string[]>>('/api/industries')
 }

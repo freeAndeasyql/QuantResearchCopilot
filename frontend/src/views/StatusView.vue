@@ -12,7 +12,7 @@ const checkHealth = async () => {
 
   try {
     const res = await getHealth()
-    status.value = res.data.status
+    status.value = res.data.data.status
   } catch (err) {
     error.value = '请求后端失败'
   } finally {
@@ -25,9 +25,7 @@ const checkHealth = async () => {
   <div class="status-page">
     <h1>项目状态</h1>
 
-    <button @click="checkHealth">
-      检查后端状态
-    </button>
+    <button @click="checkHealth">检查后端状态</button>
 
     <p v-if="loading">请求中...</p>
     <p v-else>后端状态：{{ status }}</p>
