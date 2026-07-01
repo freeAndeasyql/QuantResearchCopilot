@@ -26,6 +26,9 @@ const hasFilter = computed(() => {
   return Boolean(keyword.value || selectedIndustry.value)
 })
 
+// 增加防抖
+let searchTimer: number | undefined
+
 // 获取股票列表
 // 现在搜索、行业筛选、分页都交给后端处理
 const fetchStocks = async () => {
@@ -108,8 +111,13 @@ const resetPageAndFetch = () => {
 }
 
 // 监听搜索和行业变化
+// 输入搜索词时做 300ms 防抖，避免每输入一个字就请求后端
 watch([keyword, selectedIndustry], () => {
-  resetPageAndFetch()
+  window.clearTimeout(searchTimer)
+
+  searchTimer = window.setTimeout(() => {
+    resetPageAndFetch()
+  }, 300)
 })
 
 // 监听页码变化
@@ -140,7 +148,10 @@ onMounted(() => {
       <button v-if="hasFilter" class="clear-button" @click="clearFilter">清空筛选</button>
     </div>
 
-    <p class="summary">当前显示 {{ stocks.length }} / {{ total }} 只股票</p>
+    <p class="summary">
+      当前显示 {{ stocks.length }} / {{ total }} 只股票
+      <span v-if="loading">，正在更新...</span>
+    </p>
 
     <p v-if="loading">加载中...</p>
     <p v-if="error" class="error">{{ error }}</p>
