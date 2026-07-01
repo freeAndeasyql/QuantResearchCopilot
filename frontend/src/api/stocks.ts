@@ -42,3 +42,13 @@ export const getStockDetail = (code: string) => {
 export const getIndustries = () => {
   return request.get<ApiResponse<string[]>>('/api/industries')
 }
+
+export interface StockPriceItem {
+  trade_date: string
+  close: number
+}
+
+// 获取单只股票历史价格
+export const getStockPrices = (code: string) => {
+  return request.get<ApiResponse<StockPriceItem[]>>(`/api/stocks/${code}/prices`)
+}

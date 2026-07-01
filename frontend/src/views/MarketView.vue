@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { getIndustries, getStockDetail, getStocks, type StockItem } from '../api/stocks'
+import {
+  getIndustries,
+  getStockDetail,
+  getStockPrices,
+  getStocks,
+  type StockItem,
+  type StockPriceItem,
+} from '../api/stocks'
 
 const stocks = ref<StockItem[]>([])
 const industries = ref<string[]>([])
@@ -25,6 +32,9 @@ const totalPages = computed(() => {
 const hasFilter = computed(() => {
   return Boolean(keyword.value || selectedIndustry.value)
 })
+
+// 价格状态
+const stockPrices = ref<StockPriceItem[]>([])
 
 // 增加防抖
 let searchTimer: number | undefined
@@ -64,15 +74,19 @@ const fetchIndustries = async () => {
   }
 }
 
-// 获取单只股票详情
+// 获取单只股票详情和历史价格
 // 点击表格行时调用
 const selectStock = async (code: string) => {
   detailLoading.value = true
   detailError.value = ''
+  stockPrices.value = []
 
   try {
-    const res = await getStockDetail(code)
-    selectedStock.value = res.data.data
+    // 同时请求详情和价格。
+    const [detailRes, pricesRes] = await Promise.all([getStockDetail(code), getStockPrices(code)])
+
+    selectedStock.value = detailRes.data.data
+    stockPrices.value = pricesRes.data.data
   } catch (err) {
     detailError.value = err instanceof Error ? err.message : '获取股票详情失败'
   } finally {
@@ -201,6 +215,29 @@ onMounted(() => {
 
       <p v-if="!selectedStock && !detailLoading" class="empty">点击表格中的股票查看详情</p>
     </div>
+    <div v-if="stockPrices.length" class="price-list">
+      <h3>最近价格</h3>
+
+      <table>
+        <thead>
+          <tr>
+            <th>交易日期</th>
+            <th>收盘价</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr v-for="price in stockPrices" :key="price.trade_date">
+            <td>{{ price.trade_date }}</td>
+            <td>{{ price.close }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p v-if="selectedStock && !stockPrices.length && !detailLoading" class="empty">
+      暂无历史价格数据
+    </p>
   </div>
 </template>
 
@@ -329,6 +366,31 @@ onMounted(() => {
 
     p {
       margin: 0;
+    }
+  }
+
+  .price-list {
+    margin-top: 16px;
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 8px;
+      border: 1px solid #e5e7eb;
+      text-align: left;
+    }
+
+    th {
+      background: #f8fafc;
     }
   }
 }

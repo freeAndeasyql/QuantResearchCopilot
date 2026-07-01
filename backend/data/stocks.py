@@ -44,3 +44,28 @@ def list_industries():
     # set 用来去重
     # sorted 用来排序，让返回结果更稳定
     return sorted(set(stock["industry"] for stock in MOCK_STOCKS))
+
+# 股票历史价格 Mock 数据
+# key 是股票代码，value 是该股票最近几天的价格
+MOCK_STOCK_PRICES = {
+    "600519": [
+        {"trade_date": "2026-06-24", "close": 1512.0},
+        {"trade_date": "2026-06-25", "close": 1518.5},
+        {"trade_date": "2026-06-26", "close": 1525.0},
+        {"trade_date": "2026-06-29", "close": 1519.2},
+        {"trade_date": "2026-06-30", "close": 1520.5},
+    ],
+    "000001": [
+        {"trade_date": "2026-06-24", "close": 10.12},
+        {"trade_date": "2026-06-25", "close": 10.18},
+        {"trade_date": "2026-06-26", "close": 10.22},
+        {"trade_date": "2026-06-29", "close": 10.2},
+        {"trade_date": "2026-06-30", "close": 10.25},
+    ],
+}
+
+
+# 根据股票代码查询历史价格
+# 如果没有该股票的历史价格，就返回空列表
+def list_stock_prices(code: str):
+    return MOCK_STOCK_PRICES.get(code, [])

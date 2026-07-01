@@ -8,6 +8,7 @@ from data.stocks import (
     find_stock_by_code,
     list_industries,
     paginate_stocks,
+    list_stock_prices
 )
 from utils.response import error_response, success_response
 
@@ -95,3 +96,19 @@ def get_stock_detail(code: str):
         raise HTTPException(status_code=404, detail="股票不存在")
 
     return success_response(data=stock)
+
+# 股票历史价格接口
+# 根据股票代码查询该股票最近几天的收盘价
+@app.get("/api/stocks/{code}/prices")
+def get_stock_prices(code: str):
+    # 根据股票代码查找股票
+    stock = find_stock_by_code(code)
+
+    # 如果没找到，就返回 404
+    if not stock:
+        raise HTTPException(status_code=404, detail="股票不存在")
+
+    # 查询该股票的历史价格
+    prices = list_stock_prices(code)
+
+    return success_response(data=prices)
