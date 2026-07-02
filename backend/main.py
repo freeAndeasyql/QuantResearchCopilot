@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from data.csv_loader import get_recent_prices_by_code, get_stock_metrics_by_code
+from data.csv_loader import get_recent_prices_by_code, get_stock_metrics_by_code,get_latest_close_map
 
 from data.stocks import (
     filter_stocks,
@@ -60,14 +60,30 @@ def get_stocks(
     # 第一步：根据搜索词和行业筛选股票
     filtered_stocks = filter_stocks(keyword=keyword, industry=industry)
 
-    # 第二步：对筛选后的股票进行分页
+    # 第二步：从 CSV 中获取每只股票最新收盘价
+    latest_close_map = get_latest_close_map()
+
+    # 第三步：用 CSV 最新收盘价覆盖 Mock 数据里的 latest_price
+    enriched_stocks = []
+
+    for stock in filtered_stocks:
+        stock_code = stock["code"]
+        latest_price = latest_close_map.get(stock_code, stock["latest_price"])
+
+        enriched_stocks.append(
+            {
+                **stock,
+                "latest_price": latest_price,
+            }
+        )
+
+    # 第四步：对增强后的股票列表进行分页
     paged_stocks = paginate_stocks(
-        stocks=filtered_stocks,
+        stocks=enriched_stocks,
         page=page,
         page_size=page_size,
     )
 
-    # 第三步：把分页信息和列表一起返回给前端
     return success_response(
         data={
             "list": paged_stocks,

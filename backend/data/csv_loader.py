@@ -125,3 +125,48 @@ def get_stock_metrics_by_code(stock_code: str, limit: int = 30):
         "period_days": len(recent_df),
         "period_return": round(period_return, 2),
     }
+
+# 获取单只股票的最新收盘价
+def get_latest_close_by_code(stock_code: str):
+    df = load_daily_price()
+
+    if df.empty:
+        return None
+
+    code = stock_code.zfill(6)
+    stock_df = df[df["stock_code"] == code].copy()
+
+    if stock_df.empty:
+        return None
+
+    # 按照交易日期生序排序
+    stock_df = stock_df.sort_values("trade_date")
+
+    latest = stock_df.iloc[-1]
+    return round(float(latest["close"]), 2)
+
+# 批量获取所有股票的最新收盘价
+def get_latest_close_map():
+    df = load_daily_price()
+
+    if df.empty:
+        return {}
+
+    # 按股票代码和交易日期排序
+    sorted_df = df.sort_values(["stock_code", "trade_date"])
+
+    # 每只股票取最后一条记录
+    latest_df = sorted_df.groupby("stock_code").tail(1)
+
+    # 转成字典：
+    # {
+    #   "600519": 1520.5,
+    #   "000001": 10.25
+    # }
+    latest_close_map = {}
+
+    for _, row in latest_df.iterrows():
+      stock_code = str(row["stock_code"]).zfill(6)
+      latest_close_map[stock_code] = round(float(row["close"]), 2)
+
+    return latest_close_map
