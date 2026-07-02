@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from data.csv_loader import get_recent_prices_by_code, get_stock_metrics_by_code
 
 from data.stocks import (
     filter_stocks,
@@ -98,7 +99,7 @@ def get_stock_detail(code: str):
     return success_response(data=stock)
 
 # 股票历史价格接口
-# 根据股票代码查询该股票最近几天的收盘价
+# 根据股票代码从 CSV 中查询最近 30 条收盘价
 @app.get("/api/stocks/{code}/prices")
 def get_stock_prices(code: str):
     # 根据股票代码查找股票
@@ -108,7 +109,28 @@ def get_stock_prices(code: str):
     if not stock:
         raise HTTPException(status_code=404, detail="股票不存在")
 
-    # 查询该股票的历史价格
-    prices = list_stock_prices(code)
+  # 从 daily_price.csv 读取该股票最近 30 条价格
+    prices = get_recent_prices_by_code(code, limit=30)
+
 
     return success_response(data=prices)
+
+# 股票收益指标接口
+# 根据股票代码从 CSV 中计算涨跌幅和区间收益率
+@app.get("/api/stocks/{code}/metrics")
+def get_stock_metrics(code: str):
+    # 根据股票代码查找股票
+    stock = find_stock_by_code(code)
+
+    # 如果没找到，就返回 404
+    if not stock:
+        raise HTTPException(status_code=404, detail="股票不存在")
+
+    # 从 daily_price.csv 计算该股票的收益指标
+    metrics = get_stock_metrics_by_code(code, limit=30)
+
+    # 如果没有数据，返回空字典
+    if not metrics:
+        return HttpException(status_code=404, detail="该股票没有足够的历史价格数据，无法计算收益指标")
+
+    return success_response(data=metrics)

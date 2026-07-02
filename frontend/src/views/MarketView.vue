@@ -7,13 +7,19 @@ import {
   getStockDetail,
   getStockPrices,
   getStocks,
+  getStockMetrics,
   type StockItem,
   type StockPriceItem,
+  type StockMetrics,
 } from '../api/stocks'
 
 const stocks = ref<StockItem[]>([])
 const industries = ref<string[]>([])
+// 选取股票
 const selectedStock = ref<StockItem | null>(null)
+
+// 选取股票涨跌幅
+const stockMetrics = ref<StockMetrics | null>(null)
 
 const keyword = ref('')
 const selectedIndustry = ref('')
@@ -82,13 +88,19 @@ const selectStock = async (code: string) => {
   detailLoading.value = true
   detailError.value = ''
   stockPrices.value = []
+  stockMetrics.value = null
 
   try {
     // 同时请求详情和价格。
-    const [detailRes, pricesRes] = await Promise.all([getStockDetail(code), getStockPrices(code)])
+    const [detailRes, pricesRes, metricsRes] = await Promise.all([
+      getStockDetail(code),
+      getStockPrices(code),
+      getStockMetrics(code),
+    ])
 
     selectedStock.value = detailRes.data.data
     stockPrices.value = pricesRes.data.data
+    stockMetrics.value = metricsRes.data.data
   } catch (err) {
     detailError.value = err instanceof Error ? err.message : '获取股票详情失败'
   } finally {
@@ -216,6 +228,33 @@ onMounted(() => {
       </div>
 
       <p v-if="!selectedStock && !detailLoading" class="empty">点击表格中的股票查看详情</p>
+    </div>
+    <!-- 股票收益指标 -->
+    <div v-if="stockMetrics" class="metrics-grid">
+      <div class="metric-item">
+        <span>最新交易日</span>
+        <strong>{{ stockMetrics.latest_trade_date }}</strong>
+      </div>
+
+      <div class="metric-item">
+        <span>最新收盘价</span>
+        <strong>{{ stockMetrics.latest_close }}</strong>
+      </div>
+
+      <div class="metric-item">
+        <span>涨跌额</span>
+        <strong>{{ stockMetrics.change_amount }}</strong>
+      </div>
+
+      <div class="metric-item">
+        <span>涨跌幅</span>
+        <strong>{{ stockMetrics.change_pct }}%</strong>
+      </div>
+
+      <div class="metric-item">
+        <span>{{ stockMetrics.period_days }} 日收益率</span>
+        <strong>{{ stockMetrics.period_return }}%</strong>
+      </div>
     </div>
     <div v-if="stockPrices.length" class="price-chart-section">
       <h3>价格走势</h3>
@@ -362,6 +401,32 @@ onMounted(() => {
     h3 {
       margin: 0 0 8px;
       font-size: 16px;
+    }
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+
+    .metric-item {
+      padding: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: #f8fafc;
+
+      span {
+        display: block;
+        margin-bottom: 6px;
+        color: #6b7280;
+        font-size: 13px;
+      }
+
+      strong {
+        color: #111827;
+        font-size: 16px;
+      }
     }
   }
 }

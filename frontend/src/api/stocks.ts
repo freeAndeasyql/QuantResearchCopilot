@@ -52,3 +52,19 @@ export interface StockPriceItem {
 export const getStockPrices = (code: string) => {
   return request.get<ApiResponse<StockPriceItem[]>>(`/api/stocks/${code}/prices`)
 }
+
+export interface StockMetrics {
+  stock_code: string
+  latest_trade_date: string
+  latest_close: number
+  previous_close: number
+  change_amount: number
+  change_pct: number
+  period_days: number
+  period_return: number
+}
+
+// 获取股票收益指标
+export const getStockMetrics = (code: string) => {
+  return request.get<ApiResponse<StockMetrics>>(`/api/stocks/${code}/metrics`)
+}
