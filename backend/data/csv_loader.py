@@ -170,3 +170,35 @@ def get_latest_close_map():
       latest_close_map[stock_code] = round(float(row["close"]), 2)
 
     return latest_close_map
+
+
+# 获取 CSV 数据状态
+def get_daily_price_status():
+    df = load_daily_price()
+
+    # 如果 CSV 没有数据，返回空状态
+    if df.empty:
+        return {
+            "source": "daily_price.csv",
+            "exists": False,
+            "latest_trade_date": None,
+            "row_count": 0,
+            "stock_count": 0,
+        }
+
+    # 获取最新交易日
+    latest_trade_date = df["trade_date"].max()
+
+    # 获取数据总行数
+    row_count = len(df)
+
+    # 获取股票数量
+    stock_count = df["stock_code"].nunique()
+
+    return {
+        "source": "daily_price.csv",
+        "exists": True,
+        "latest_trade_date": latest_trade_date,
+        "row_count": row_count,
+        "stock_count": stock_count,
+    }

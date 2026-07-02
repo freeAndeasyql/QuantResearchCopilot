@@ -2,7 +2,13 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from data.csv_loader import get_recent_prices_by_code, get_stock_metrics_by_code,get_latest_close_map,get_latest_close_by_code
+from data.csv_loader import (
+    get_daily_price_status,
+    get_latest_close_by_code,
+    get_latest_close_map,
+    get_recent_prices_by_code,
+    get_stock_metrics_by_code,
+)
 
 from data.stocks import (
     filter_stocks,
@@ -159,3 +165,13 @@ def get_stock_metrics(code: str):
         return HttpException(status_code=404, detail="该股票没有足够的历史价格数据，无法计算收益指标")
 
     return success_response(data=metrics)
+
+
+# CSV 数据状态接口
+# 用来查看当前行情数据文件是否存在、最新交易日、数据行数和股票数量
+@app.get("/api/data/status")
+def get_data_status():
+    status = get_daily_price_status()
+
+    return success_response(data=status)
+

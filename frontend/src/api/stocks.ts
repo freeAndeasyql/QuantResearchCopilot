@@ -68,3 +68,16 @@ export interface StockMetrics {
 export const getStockMetrics = (code: string) => {
   return request.get<ApiResponse<StockMetrics>>(`/api/stocks/${code}/metrics`)
 }
+
+export interface DataStatus {
+  source: string
+  exists: boolean
+  latest_trade_date: string | null
+  row_count: number
+  stock_count: number
+}
+
+// 获取行情数据状态
+export const getDataStatus = () => {
+  return request.get<ApiResponse<DataStatus>>('/api/data/status')
+}

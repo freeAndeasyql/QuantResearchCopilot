@@ -1,8 +1,11 @@
 import os
 import time
+from datetime import datetime
+
 
 import akshare as ak
 import pandas as pd
+
 
 
 # 要下载的股票代码
@@ -34,7 +37,10 @@ COLUMN_MAP = {
     "换手率": "turnover_rate",
 }
 
-
+# 下载起始日期
+START_DATE = "20260101"
+# 下载结束日期：自动使用今天
+END_DATE = datetime.now().strftime("%Y%m%d")
 # 下载单只股票的日线行情
 def download_stock_price(stock_code: str):
     print(f"正在下载股票：{stock_code}")
@@ -43,8 +49,8 @@ def download_stock_price(stock_code: str):
     df = ak.stock_zh_a_hist(
         symbol=stock_code,
         period="daily",
-        start_date="20240101",
-        end_date="20250630",
+        start_date=START_DATE,
+        end_date=END_DATE,
         adjust="",
     )
 
