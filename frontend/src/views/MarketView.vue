@@ -108,6 +108,38 @@ const selectStock = async (code: string) => {
   }
 }
 
+// 格式化普通数字
+// 例如 1.2 -> 1.20
+const formatNumber = (value: number) => {
+  return value.toFixed(2)
+}
+
+// 格式化涨跌数字
+// 正数前面加 +，负数保留 -，0 不加符号
+const formatChange = (value: number) => {
+  const formattedValue = value.toFixed(2)
+
+  if (value > 0) {
+    return `+${formattedValue}`
+  }
+
+  return formattedValue
+}
+
+// 根据涨跌值返回样式类名
+// A 股习惯：上涨红色，下跌绿色
+const getChangeClass = (value: number) => {
+  if (value > 0) {
+    return 'is-up'
+  }
+
+  if (value < 0) {
+    return 'is-down'
+  }
+
+  return 'is-flat'
+}
+
 // 清空搜索和行业筛选
 const clearFilter = () => {
   keyword.value = ''
@@ -229,6 +261,7 @@ onMounted(() => {
 
       <p v-if="!selectedStock && !detailLoading" class="empty">点击表格中的股票查看详情</p>
     </div>
+
     <!-- 股票收益指标 -->
     <div v-if="stockMetrics" class="metrics-grid">
       <div class="metric-item">
@@ -238,29 +271,37 @@ onMounted(() => {
 
       <div class="metric-item">
         <span>最新收盘价</span>
-        <strong>{{ stockMetrics.latest_close }}</strong>
+        <strong>{{ formatNumber(stockMetrics.latest_close) }}</strong>
       </div>
 
       <div class="metric-item">
         <span>涨跌额</span>
-        <strong>{{ stockMetrics.change_amount }}</strong>
+        <strong :class="getChangeClass(stockMetrics.change_amount)">
+          {{ formatChange(stockMetrics.change_amount) }}
+        </strong>
       </div>
 
       <div class="metric-item">
         <span>涨跌幅</span>
-        <strong>{{ stockMetrics.change_pct }}%</strong>
+        <strong :class="getChangeClass(stockMetrics.change_pct)">
+          {{ formatChange(stockMetrics.change_pct) }}%
+        </strong>
       </div>
 
       <div class="metric-item">
         <span>{{ stockMetrics.period_days }} 日收益率</span>
-        <strong>{{ stockMetrics.period_return }}%</strong>
+        <strong :class="getChangeClass(stockMetrics.period_return)">
+          {{ formatChange(stockMetrics.period_return) }}%
+        </strong>
       </div>
     </div>
+
+    <!-- 价格走势 -->
     <div v-if="stockPrices.length" class="price-chart-section">
       <h3>价格走势</h3>
       <StockPriceChart :prices="stockPrices" />
     </div>
-
+    <!-- 暂无数据 -->
     <p v-if="selectedStock && !stockPrices.length && !detailLoading" class="empty">
       暂无历史价格数据
     </p>
@@ -426,6 +467,17 @@ onMounted(() => {
       strong {
         color: #111827;
         font-size: 16px;
+      }
+      .is-up {
+        color: #dc2626;
+      }
+
+      .is-down {
+        color: #16a34a;
+      }
+
+      .is-flat {
+        color: #6b7280;
       }
     }
   }
