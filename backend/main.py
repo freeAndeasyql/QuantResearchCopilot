@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from data.csv_loader import get_recent_prices_by_code, get_stock_metrics_by_code,get_latest_close_map
+from data.csv_loader import get_recent_prices_by_code, get_stock_metrics_by_code,get_latest_close_map,get_latest_close_by_code
 
 from data.stocks import (
     filter_stocks,
@@ -111,8 +111,17 @@ def get_stock_detail(code: str):
     # 如果没找到，就返回 404
     if not stock:
         raise HTTPException(status_code=404, detail="股票不存在")
+# 从 CSV 中获取该股票最新收盘价
+    latest_close = get_latest_close_by_code(code)
 
-    return success_response(data=stock)
+    # 如果 CSV 中有最新收盘价，就覆盖 Mock 数据里的 latest_price
+    latest_price = latest_close if latest_close is not None else stock["latest_price"]
+    # 返回增强后的股票详情
+    enriched_stock = {
+        **stock,
+        "latest_price": latest_price,
+    }
+    return success_response(data=enriched_stock)
 
 # 股票历史价格接口
 # 根据股票代码从 CSV 中查询最近 30 条收盘价
