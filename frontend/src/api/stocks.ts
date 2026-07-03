@@ -103,3 +103,12 @@ export interface DataQuality {
 export const getDataQuality = () => {
   return request.get<ApiResponse<DataQuality>>('/api/data/quality')
 }
+
+export interface DataQualityReport {
+  report: string
+}
+
+// 获取数据质量 Markdown 报告
+export const getDataQualityReport = () => {
+  return request.get<ApiResponse<DataQualityReport>>('/api/data/quality/report')
+}

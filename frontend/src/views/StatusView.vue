@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { getHealth } from '../api/health'
-import { getDataStatus, getDataQuality, type DataStatus, type DataQuality } from '../api/stocks'
+import {
+  getDataStatus,
+  getDataQuality,
+  getDataQualityReport,
+  type DataQualityReport,
+  type DataStatus,
+  type DataQuality,
+} from '../api/stocks'
 
 const status = ref('未检查')
 const loading = ref(false)
@@ -15,6 +22,11 @@ const dataStatusError = ref('')
 const dataQuality = ref<DataQuality | null>(null)
 const dataQualityLoading = ref(false)
 const dataQualityError = ref('')
+
+// 数据质量md文档
+const dataQualityReport = ref<DataQualityReport | null>(null)
+const dataQualityReportLoading = ref(false)
+const dataQualityReportError = ref('')
 
 // 根据是否正常返回状态文字
 const getQualityStatusText = (isNormal: boolean) => {
@@ -78,6 +90,21 @@ const checkDataQuality = async () => {
     dataQualityLoading.value = false
   }
 }
+
+// 获取数据质量 Markdown 报告
+const checkDataQualityReport = async () => {
+  dataQualityReportLoading.value = true
+  dataQualityReportError.value = ''
+
+  try {
+    const res = await getDataQualityReport()
+    dataQualityReport.value = res.data.data
+  } catch (err) {
+    dataQualityReportError.value = err instanceof Error ? err.message : '获取数据质量报告失败'
+  } finally {
+    dataQualityReportLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -107,6 +134,7 @@ const checkDataQuality = async () => {
       </div>
     </div>
 
+    <!-- 数据质量报告 -->
     <div class="status-card">
       <h2>数据质量报告</h2>
 
@@ -178,6 +206,20 @@ const checkDataQuality = async () => {
           </tbody>
         </table>
       </div>
+    </div>
+
+    <!-- 数据质量 Markdown 报告 -->
+    <div class="status-card">
+      <h2>数据质量 Markdown 报告</h2>
+
+      <button @click="checkDataQualityReport">生成 Markdown 报告</button>
+
+      <p v-if="dataQualityReportLoading">生成中...</p>
+      <p v-if="dataQualityReportError" class="error">{{ dataQualityReportError }}</p>
+
+      <pre v-if="dataQualityReport" class="markdown-preview"
+        >{{ dataQualityReport.report }}
+  </pre>
     </div>
   </div>
 </template>
@@ -303,5 +345,16 @@ const checkDataQuality = async () => {
   th {
     background: #f8fafc;
   }
+}
+.markdown-preview {
+  margin-top: 12px;
+  padding: 12px;
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #111827;
+  white-space: pre-wrap;
+  line-height: 1.6;
 }
 </style>

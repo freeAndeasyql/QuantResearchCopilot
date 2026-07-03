@@ -266,3 +266,42 @@ def check_daily_price_quality():
         "missing_close_count": missing_close_count,
         "stock_record_counts": stock_record_counts,
     }
+
+# 生成数据质量 Markdown 报告
+def generate_daily_price_quality_report():
+    quality = check_daily_price_quality()
+
+    # 用来生成每只股票记录数表格。
+    stock_rows = []
+
+    for item in quality["stock_record_counts"]:
+        stock_rows.append(
+            f'| {item["stock_code"]} | {item["record_count"]} |'
+        )
+
+    stock_table = "\n".join(stock_rows) if stock_rows else "| 暂无 | 0 |"
+
+    report = f"""# 数据质量报告
+
+## 总体结论
+
+{quality["summary"]}
+
+## 核心指标
+
+| 指标 | 数值 |
+|---|---:|
+| 数据状态 | {quality["level"]} |
+| 总行数 | {quality["row_count"]} |
+| 缺失值数量 | {quality["missing_value_count"]} |
+| 重复行数量 | {quality["duplicate_row_count"]} |
+| 收盘价缺失数量 | {quality["missing_close_count"]} |
+
+## 每只股票记录数
+
+| 股票代码 | 记录数 |
+|---|---:|
+{stock_table}
+"""
+
+    return report

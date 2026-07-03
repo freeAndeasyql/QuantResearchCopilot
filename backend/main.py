@@ -9,6 +9,7 @@ from data.csv_loader import (
     get_latest_close_map,
     get_recent_prices_by_code,
     get_stock_metrics_by_code,
+    generate_daily_price_quality_report,
 )
 
 from data.stocks import (
@@ -183,4 +184,12 @@ def get_data_quality():
     quality = check_daily_price_quality()
 
     return success_response(data=quality)
+
+# 数据质量 Markdown 报告接口
+# 返回一段可直接展示或保存的 Markdown 文本
+@app.get("/api/data/quality/report")
+def get_data_quality_report():
+    report = generate_daily_price_quality_report()
+
+    return success_response(data={"report": report})
 
