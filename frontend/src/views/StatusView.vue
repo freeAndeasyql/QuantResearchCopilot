@@ -15,6 +15,26 @@ const dataStatusError = ref('')
 const dataQuality = ref<DataQuality | null>(null)
 const dataQualityLoading = ref(false)
 const dataQualityError = ref('')
+
+// 根据是否正常返回状态文字
+const getQualityStatusText = (isNormal: boolean) => {
+  return isNormal ? '正常' : '警告'
+}
+
+// 根据是否正常返回状态样式
+const getQualityStatusClass = (isNormal: boolean) => {
+  return isNormal ? 'is-success' : 'is-warning'
+}
+
+// 根据数据是否存在返回整体状态
+const getDataStatusText = (hasData: boolean) => {
+  return hasData ? '正常' : '异常'
+}
+
+// 根据数据是否存在返回整体状态样式
+const getDataStatusClass = (hasData: boolean) => {
+  return hasData ? 'is-success' : 'is-danger'
+}
 const checkHealth = async () => {
   loading.value = true
   error.value = ''
@@ -95,12 +115,44 @@ const checkDataQuality = async () => {
       <p v-if="dataQualityLoading">检查中...</p>
       <p v-if="dataQualityError" class="error">{{ dataQualityError }}</p>
 
-      <div v-if="dataQuality" class="status-list">
-        <p>是否有数据：{{ dataQuality.has_data ? '是' : '否' }}</p>
-        <p>总行数：{{ dataQuality.row_count }}</p>
-        <p>缺失值数量：{{ dataQuality.missing_value_count }}</p>
-        <p>重复行数量：{{ dataQuality.duplicate_row_count }}</p>
-        <p>收盘价缺失数量：{{ dataQuality.missing_close_count }}</p>
+      <div v-if="dataQuality" class="quality-report">
+        <div class="quality-summary">
+          <div class="quality-item">
+            <span>数据状态</span>
+            <strong :class="getDataStatusClass(dataQuality.has_data)">
+              {{ getDataStatusText(dataQuality.has_data) }}
+            </strong>
+          </div>
+
+          <div class="quality-item">
+            <span>总行数</span>
+            <strong>{{ dataQuality.row_count }}</strong>
+          </div>
+
+          <div class="quality-item">
+            <span>缺失值</span>
+            <strong>{{ dataQuality.missing_value_count }}</strong>
+            <em :class="getQualityStatusClass(dataQuality.missing_value_count === 0)">
+              {{ getQualityStatusText(dataQuality.missing_value_count === 0) }}
+            </em>
+          </div>
+
+          <div class="quality-item">
+            <span>重复行</span>
+            <strong>{{ dataQuality.duplicate_row_count }}</strong>
+            <em :class="getQualityStatusClass(dataQuality.duplicate_row_count === 0)">
+              {{ getQualityStatusText(dataQuality.duplicate_row_count === 0) }}
+            </em>
+          </div>
+
+          <div class="quality-item">
+            <span>收盘价缺失</span>
+            <strong>{{ dataQuality.missing_close_count }}</strong>
+            <em :class="getQualityStatusClass(dataQuality.missing_close_count === 0)">
+              {{ getQualityStatusText(dataQuality.missing_close_count === 0) }}
+            </em>
+          </div>
+        </div>
 
         <h3>每只股票记录数</h3>
 
@@ -125,6 +177,81 @@ const checkDataQuality = async () => {
 </template>
 
 <style lang="scss" scoped>
+.quality-table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 8px;
+    border: 1px solid #e5e7eb;
+    text-align: left;
+  }
+
+  th {
+    background: #f8fafc;
+  }
+}
+.quality-report {
+  margin-top: 12px;
+
+  h3 {
+    margin: 20px 0 12px;
+    font-size: 16px;
+  }
+}
+
+.quality-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.quality-item {
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+
+  span {
+    display: block;
+    margin-bottom: 6px;
+    color: #6b7280;
+    font-size: 13px;
+  }
+
+  strong {
+    display: block;
+    color: #111827;
+    font-size: 18px;
+  }
+
+  em {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-style: normal;
+    font-size: 12px;
+  }
+}
+
+.is-success {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.is-warning {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.is-danger {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
 .quality-table {
   width: 100%;
   margin-top: 12px;
