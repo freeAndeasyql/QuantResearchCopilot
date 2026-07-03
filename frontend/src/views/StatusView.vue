@@ -116,6 +116,12 @@ const checkDataQuality = async () => {
       <p v-if="dataQualityError" class="error">{{ dataQualityError }}</p>
 
       <div v-if="dataQuality" class="quality-report">
+        <div class="quality-conclusion">
+          <strong :class="`is-${dataQuality.status}`">
+            {{ dataQuality.level }}
+          </strong>
+          <span>{{ dataQuality.summary }}</span>
+        </div>
         <div class="quality-summary">
           <div class="quality-item">
             <span>数据状态</span>
@@ -200,6 +206,36 @@ const checkDataQuality = async () => {
     margin: 20px 0 12px;
     font-size: 16px;
   }
+}
+
+.quality-conclusion {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+
+  strong {
+    padding: 2px 10px;
+    border-radius: 999px;
+  }
+
+  span {
+    color: #374151;
+  }
+}
+
+.is-normal {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.is-danger {
+  color: #b91c1c;
+  background: #fee2e2;
 }
 
 .quality-summary {

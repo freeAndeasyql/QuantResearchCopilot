@@ -207,10 +207,13 @@ def get_daily_price_status():
 def check_daily_price_quality():
     df = load_daily_price()
 
-    # 如果 CSV 没有数据，返回空质量报告
+    # 如果 CSV 没有数据，返回异常结论
     if df.empty:
         return {
             "has_data": False,
+            "status": "danger",
+            "level": "异常",
+            "summary": "CSV 文件不存在或没有任何行情数据",
             "row_count": 0,
             "missing_value_count": 0,
             "duplicate_row_count": 0,
@@ -236,8 +239,27 @@ def check_daily_price_quality():
         .to_dict(orient="records")
     )
 
+    # 根据数据质量指标生成整体结论
+    has_warning = (
+        missing_value_count > 0
+        or duplicate_row_count > 0
+        or missing_close_count > 0
+    )
+
+    if has_warning:
+        status = "warning"
+        level = "警告"
+        summary = "数据存在缺失值、重复行或收盘价缺失，请检查 CSV 数据"
+    else:
+        status = "normal"
+        level = "正常"
+        summary = "数据质量正常，暂无缺失值和重复行"
+
     return {
         "has_data": True,
+        "status": status,
+        "level": level,
+        "summary": summary,
         "row_count": len(df),
         "missing_value_count": missing_value_count,
         "duplicate_row_count": duplicate_row_count,

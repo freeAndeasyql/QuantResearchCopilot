@@ -89,6 +89,9 @@ export interface StockRecordCount {
 
 export interface DataQuality {
   has_data: boolean
+  status: string
+  level: string
+  summary: string
   row_count: number
   missing_value_count: number
   duplicate_row_count: number
