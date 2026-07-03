@@ -81,3 +81,22 @@ export interface DataStatus {
 export const getDataStatus = () => {
   return request.get<ApiResponse<DataStatus>>('/api/data/status')
 }
+
+export interface StockRecordCount {
+  stock_code: string
+  record_count: number
+}
+
+export interface DataQuality {
+  has_data: boolean
+  row_count: number
+  missing_value_count: number
+  duplicate_row_count: number
+  missing_close_count: number
+  stock_record_counts: StockRecordCount[]
+}
+
+// 获取行情数据质量报告
+export const getDataQuality = () => {
+  return request.get<ApiResponse<DataQuality>>('/api/data/quality')
+}

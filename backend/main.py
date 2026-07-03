@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from data.csv_loader import (
+    check_daily_price_quality,
     get_daily_price_status,
     get_latest_close_by_code,
     get_latest_close_map,
@@ -174,4 +175,12 @@ def get_data_status():
     status = get_daily_price_status()
 
     return success_response(data=status)
+
+# CSV 数据质量检查接口
+# 用来检查行情数据是否有缺失值、重复行、收盘价缺失等问题
+@app.get("/api/data/quality")
+def get_data_quality():
+    quality = check_daily_price_quality()
+
+    return success_response(data=quality)
 

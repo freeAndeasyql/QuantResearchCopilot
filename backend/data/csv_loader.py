@@ -202,3 +202,45 @@ def get_daily_price_status():
         "row_count": row_count,
         "stock_count": stock_count,
     }
+
+# 检查 CSV 数据质量
+def check_daily_price_quality():
+    df = load_daily_price()
+
+    # 如果 CSV 没有数据，返回空质量报告
+    if df.empty:
+        return {
+            "has_data": False,
+            "row_count": 0,
+            "missing_value_count": 0,
+            "duplicate_row_count": 0,
+            "missing_close_count": 0,
+            "stock_record_counts": [],
+        }
+
+    # 缺失值总数
+    missing_value_count = int(df.isna().sum().sum())
+
+    # 重复行数量
+    duplicate_row_count = int(df.duplicated().sum())
+
+    # 收盘价缺失数量
+    missing_close_count = int(df["close"].isna().sum()) if "close" in df.columns else 0
+
+    # 每只股票的数据行数
+    stock_record_counts = (
+        df.groupby("stock_code")
+        .size()
+        .reset_index(name="record_count")
+        .sort_values("stock_code")
+        .to_dict(orient="records")
+    )
+
+    return {
+        "has_data": True,
+        "row_count": len(df),
+        "missing_value_count": missing_value_count,
+        "duplicate_row_count": duplicate_row_count,
+        "missing_close_count": missing_close_count,
+        "stock_record_counts": stock_record_counts,
+    }
