@@ -2,14 +2,15 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
 from data.csv_loader import (
     check_daily_price_quality,
+    generate_daily_price_quality_report,
     get_daily_price_status,
     get_latest_close_by_code,
     get_latest_close_map,
     get_recent_prices_by_code,
     get_stock_metrics_by_code,
-    generate_daily_price_quality_report,
 )
 
 from data.stocks import (
@@ -17,26 +18,29 @@ from data.stocks import (
     find_stock_by_code,
     list_industries,
     paginate_stocks,
-    list_stock_prices
 )
+
 from utils.response import error_response, success_response
 
 
 app = FastAPI(title="Quant Research Copilot API")
 
+
 # 配置 CORS
-# 前端运行在 5173，后端运行在 8001
-# 因为端口不同，浏览器会认为是跨域请求，所以后端要允许前端访问
+# 前端和后端端口不同，所以需要允许前端访问后端接口
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5176",
         "http://127.0.0.1:5176",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # 统一处理 HTTPException
 # 例如 raise HTTPException(status_code=404, detail="股票不存在")
@@ -119,17 +123,21 @@ def get_stock_detail(code: str):
     # 如果没找到，就返回 404
     if not stock:
         raise HTTPException(status_code=404, detail="股票不存在")
-# 从 CSV 中获取该股票最新收盘价
+
+    # 从 CSV 中获取该股票最新收盘价
     latest_close = get_latest_close_by_code(code)
 
     # 如果 CSV 中有最新收盘价，就覆盖 Mock 数据里的 latest_price
     latest_price = latest_close if latest_close is not None else stock["latest_price"]
+
     # 返回增强后的股票详情
     enriched_stock = {
         **stock,
         "latest_price": latest_price,
     }
+
     return success_response(data=enriched_stock)
+
 
 # 股票历史价格接口
 # 根据股票代码从 CSV 中查询最近 30 条收盘价
@@ -142,11 +150,11 @@ def get_stock_prices(code: str):
     if not stock:
         raise HTTPException(status_code=404, detail="股票不存在")
 
-  # 从 daily_price.csv 读取该股票最近 30 条价格
+    # 从 daily_price.csv 读取该股票最近 30 条价格
     prices = get_recent_prices_by_code(code, limit=30)
 
-
     return success_response(data=prices)
+
 
 # 股票收益指标接口
 # 根据股票代码从 CSV 中计算涨跌幅和区间收益率
@@ -162,9 +170,12 @@ def get_stock_metrics(code: str):
     # 从 daily_price.csv 计算该股票的收益指标
     metrics = get_stock_metrics_by_code(code, limit=30)
 
-    # 如果没有数据，返回空字典
+    # 如果没有足够数据，返回 404
     if not metrics:
-        return HttpException(status_code=404, detail="该股票没有足够的历史价格数据，无法计算收益指标")
+        raise HTTPException(
+            status_code=404,
+            detail="该股票没有足够的历史价格数据，无法计算收益指标",
+        )
 
     return success_response(data=metrics)
 
@@ -177,6 +188,7 @@ def get_data_status():
 
     return success_response(data=status)
 
+
 # CSV 数据质量检查接口
 # 用来检查行情数据是否有缺失值、重复行、收盘价缺失等问题
 @app.get("/api/data/quality")
@@ -185,6 +197,7 @@ def get_data_quality():
 
     return success_response(data=quality)
 
+
 # 数据质量 Markdown 报告接口
 # 返回一段可直接展示或保存的 Markdown 文本
 @app.get("/api/data/quality/report")
@@ -192,4 +205,3 @@ def get_data_quality_report():
     report = generate_daily_price_quality_report()
 
     return success_response(data={"report": report})
-
