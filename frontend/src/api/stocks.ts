@@ -129,3 +129,19 @@ export interface StockIndicatorItem {
 export const getStockIndicators = (code: string) => {
   return request.get<ApiResponse<StockIndicatorItem[]>>(`/api/stocks/${code}/indicators`)
 }
+
+// 获取股票技术指标解读
+export interface StockIndicatorSummary {
+  trade_date: string
+  close: number | null
+  ma5: number | null
+  ma10: number | null
+  ma20: number | null
+  trend: string
+  summary: string
+  signals: string[]
+}
+
+export const getStockIndicatorSummary = (code: string) => {
+  return request.get<ApiResponse<StockIndicatorSummary>>(`/api/stocks/${code}/indicator-summary`)
+}

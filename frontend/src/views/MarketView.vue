@@ -9,6 +9,8 @@ import {
   getStocks,
   getStockMetrics,
   getStockIndicators,
+  getStockIndicatorSummary,
+  type StockIndicatorSummary,
   type StockIndicatorItem,
   type StockItem,
   type StockPriceItem,
@@ -49,6 +51,9 @@ const stockPrices = ref<StockPriceItem[]>([])
 // 股票技术指标数据：收盘价、MA5、MA10、MA20
 const stockIndicators = ref<StockIndicatorItem[]>([])
 
+// 技术指标解读数据
+const indicatorSummary = ref<StockIndicatorSummary | null>(null)
+
 // 增加防抖
 let searchTimer: number | undefined
 
@@ -87,28 +92,35 @@ const fetchIndustries = async () => {
   }
 }
 
-// 获取单只股票详情和历史价格
 // 点击表格行时调用
+// 获取单只股票详情、历史价格、收益指标、技术指标和技术指标解读
+
 const selectStock = async (code: string) => {
   detailLoading.value = true
   detailError.value = ''
+
   // 清空上一次股票的数据，避免切换股票时短暂显示旧数据
   stockPrices.value = []
   stockMetrics.value = null
   stockIndicators.value = []
+  indicatorSummary.value = null
+
   try {
-    // 同时请求详情、历史价格、收益指标、技术指标
-    const [detailRes, pricesRes, metricsRes, indicatorsRes] = await Promise.all([
-      getStockDetail(code),
-      getStockPrices(code),
-      getStockMetrics(code),
-      getStockIndicators(code),
-    ])
+    // 同时请求多个接口，提高页面加载速度
+    const [detailRes, pricesRes, metricsRes, indicatorsRes, indicatorSummaryRes] =
+      await Promise.all([
+        getStockDetail(code),
+        getStockPrices(code),
+        getStockMetrics(code),
+        getStockIndicators(code),
+        getStockIndicatorSummary(code),
+      ])
 
     selectedStock.value = detailRes.data.data
     stockPrices.value = pricesRes.data.data
     stockMetrics.value = metricsRes.data.data
     stockIndicators.value = indicatorsRes.data.data
+    indicatorSummary.value = indicatorSummaryRes.data.data
   } catch (err) {
     detailError.value = err instanceof Error ? err.message : '获取股票详情失败'
   } finally {
@@ -304,6 +316,56 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- 技术指标解读 -->
+    <div v-if="indicatorSummary" class="indicator-summary-card">
+      <div class="indicator-summary-header">
+        <h3>技术指标解读</h3>
+        <span class="trend-tag">{{ indicatorSummary.trend }}</span>
+      </div>
+
+      <p class="summary-text">
+        {{ indicatorSummary.summary }}
+      </p>
+
+      <div class="indicator-values">
+        <div class="indicator-value-item">
+          <span>交易日</span>
+          <strong>{{ indicatorSummary.trade_date }}</strong>
+        </div>
+
+        <div class="indicator-value-item">
+          <span>收盘价</span>
+          <strong>{{ indicatorSummary.close ?? '暂无' }}</strong>
+        </div>
+
+        <div class="indicator-value-item">
+          <span>MA5</span>
+          <strong>{{ indicatorSummary.ma5 ?? '暂无' }}</strong>
+        </div>
+
+        <div class="indicator-value-item">
+          <span>MA10</span>
+          <strong>{{ indicatorSummary.ma10 ?? '暂无' }}</strong>
+        </div>
+
+        <div class="indicator-value-item">
+          <span>MA20</span>
+          <strong>{{ indicatorSummary.ma20 ?? '暂无' }}</strong>
+        </div>
+      </div>
+
+      <div class="signal-list">
+        <h4>关键信号</h4>
+
+        <ul>
+          <li v-for="signal in indicatorSummary.signals" :key="signal">
+            {{ signal }}
+          </li>
+        </ul>
+      </div>
+
+      <p class="risk-tip">说明：该解读仅基于均线关系生成，用于学习和辅助观察，不构成投资建议。</p>
+    </div>
     <!-- 价格走势 -->
     <div v-if="stockPrices.length" class="price-chart-section">
       <h3>价格走势</h3>
@@ -488,6 +550,96 @@ onMounted(() => {
         color: #6b7280;
       }
     }
+  }
+}
+
+.indicator-summary-card {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.indicator-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  h3 {
+    margin: 0;
+    font-size: 18px;
+  }
+}
+
+.trend-tag {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.summary-text {
+  margin: 12px 0;
+  color: #374151;
+  line-height: 1.7;
+}
+
+.indicator-values {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.indicator-value-item {
+  padding: 12px;
+  border-radius: 8px;
+  background: #ffffff;
+
+  span {
+    display: block;
+    margin-bottom: 6px;
+    color: #6b7280;
+    font-size: 13px;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 16px;
+  }
+}
+
+.signal-list {
+  margin-top: 16px;
+
+  h4 {
+    margin: 0 0 8px;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 20px;
+  }
+
+  li {
+    margin-bottom: 6px;
+    color: #374151;
+    line-height: 1.6;
+  }
+}
+
+.risk-tip {
+  margin: 12px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+@media (max-width: 900px) {
+  .indicator-values {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>
