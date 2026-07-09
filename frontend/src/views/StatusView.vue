@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import MarkdownIt from 'markdown-it'
 import { getHealth } from '../api/health'
 import {
   getDataStatus,
@@ -31,6 +32,22 @@ const dataQualityReportError = ref('')
 // 复制markdown报告到剪贴板
 const copyReportSuccess = ref('')
 const copyReportError = ref('')
+
+// 创建 Markdown 渲染器
+// html: false 表示不解析 HTML，避免不安全内容
+// breaks: true 表示普通换行也会显示成换行
+const markdown = new MarkdownIt({
+  html: false,
+  breaks: true,
+})
+// 将 Markdown 文本转换成 HTML
+const renderedQualityReport = computed(() => {
+  if (!dataQualityReport.value?.report) {
+    return ''
+  }
+
+  return markdown.render(dataQualityReport.value.report)
+})
 
 // 根据是否正常返回状态文字
 const getQualityStatusText = (isNormal: boolean) => {
@@ -258,9 +275,7 @@ const copyDataQualityReport = async () => {
       <p v-if="copyReportSuccess" class="success">{{ copyReportSuccess }}</p>
       <p v-if="copyReportError" class="error">{{ copyReportError }}</p>
 
-      <pre v-if="dataQualityReport" class="markdown-preview"
-        >{{ dataQualityReport.report }}
-  </pre>
+      <div v-if="dataQualityReport" class="markdown-preview" v-html="renderedQualityReport"></div>
     </div>
   </div>
 </template>
@@ -389,14 +404,45 @@ const copyDataQualityReport = async () => {
 }
 .markdown-preview {
   margin-top: 12px;
-  padding: 12px;
+  padding: 16px;
   overflow-x: auto;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #f8fafc;
   color: #111827;
-  white-space: pre-wrap;
-  line-height: 1.6;
+  line-height: 1.7;
+
+  :deep(h1) {
+    margin: 0 0 16px;
+    font-size: 22px;
+  }
+
+  :deep(h2) {
+    margin: 20px 0 12px;
+    font-size: 18px;
+  }
+
+  :deep(p) {
+    margin: 8px 0;
+  }
+
+  :deep(table) {
+    width: 100%;
+    margin-top: 12px;
+    border-collapse: collapse;
+  }
+
+  :deep(th),
+  :deep(td) {
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    text-align: left;
+  }
+
+  :deep(th) {
+    background: #f3f4f6;
+    font-weight: 600;
+  }
 }
 .report-actions {
   display: flex;
