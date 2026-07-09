@@ -28,6 +28,10 @@ const dataQualityReport = ref<DataQualityReport | null>(null)
 const dataQualityReportLoading = ref(false)
 const dataQualityReportError = ref('')
 
+// 复制markdown报告到剪贴板
+const copyReportSuccess = ref('')
+const copyReportError = ref('')
+
 // 根据是否正常返回状态文字
 const getQualityStatusText = (isNormal: boolean) => {
   return isNormal ? '正常' : '警告'
@@ -103,6 +107,32 @@ const checkDataQualityReport = async () => {
     dataQualityReportError.value = err instanceof Error ? err.message : '获取数据质量报告失败'
   } finally {
     dataQualityReportLoading.value = false
+  }
+}
+
+// 复制数据质量 Markdown 报告
+const copyDataQualityReport = async () => {
+  copyReportSuccess.value = ''
+  copyReportError.value = ''
+
+  // 如果还没有生成报告，就不允许复制
+  if (!dataQualityReport.value?.report) {
+    copyReportError.value = '请先生成 Markdown 报告'
+    return
+  }
+
+  try {
+    // navigator.clipboard 是浏览器提供的复制 API
+    await navigator.clipboard.writeText(dataQualityReport.value.report)
+
+    copyReportSuccess.value = '复制成功，可以粘贴到文档里了'
+
+    // 2 秒后清空提示
+    setTimeout(() => {
+      copyReportSuccess.value = ''
+    }, 2000)
+  } catch (err) {
+    copyReportError.value = err instanceof Error ? err.message : '复制失败'
   }
 }
 </script>
@@ -215,10 +245,18 @@ const checkDataQualityReport = async () => {
     <div class="status-card">
       <h2>数据质量 Markdown 报告</h2>
 
-      <button @click="checkDataQualityReport">生成 Markdown 报告</button>
+      <div class="report-actions">
+        <button @click="checkDataQualityReport">生成 Markdown 报告</button>
+
+        <button :disabled="!dataQualityReport?.report" @click="copyDataQualityReport">
+          复制 Markdown 报告
+        </button>
+      </div>
 
       <p v-if="dataQualityReportLoading">生成中...</p>
       <p v-if="dataQualityReportError" class="error">{{ dataQualityReportError }}</p>
+      <p v-if="copyReportSuccess" class="success">{{ copyReportSuccess }}</p>
+      <p v-if="copyReportError" class="error">{{ copyReportError }}</p>
 
       <pre v-if="dataQualityReport" class="markdown-preview"
         >{{ dataQualityReport.report }}
@@ -359,5 +397,21 @@ const checkDataQualityReport = async () => {
   color: #111827;
   white-space: pre-wrap;
   line-height: 1.6;
+}
+.report-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 12px;
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.success {
+  color: #15803d;
 }
 </style>
