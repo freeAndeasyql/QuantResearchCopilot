@@ -152,6 +152,46 @@ const copyDataQualityReport = async () => {
     copyReportError.value = err instanceof Error ? err.message : '复制失败'
   }
 }
+
+// 下载数据质量 Markdown 报告
+const downloadDataQualityReport = () => {
+  copyReportSuccess.value = ''
+  copyReportError.value = ''
+
+  // 如果还没有生成报告，就不允许下载
+  if (!dataQualityReport.value?.report) {
+    copyReportError.value = '请先生成 Markdown 报告'
+    return
+  }
+
+  // 生成当前日期，用于文件名
+  const today = new Date().toISOString().slice(0, 10)
+
+  // 文件名
+  const fileName = `daily-price-quality-report-${today}.md`
+
+  // 创建 Markdown 文件内容
+  const blob = new Blob([dataQualityReport.value.report], {
+    type: 'text/markdown;charset=utf-8',
+  })
+
+  // 创建一个临时下载链接
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = fileName
+  link.click()
+
+  // 释放临时链接，避免内存占用
+  URL.revokeObjectURL(url)
+
+  copyReportSuccess.value = 'Markdown 报告下载成功'
+
+  setTimeout(() => {
+    copyReportSuccess.value = ''
+  }, 2000)
+}
 </script>
 
 <template>
@@ -267,6 +307,10 @@ const copyDataQualityReport = async () => {
 
         <button :disabled="!dataQualityReport?.report" @click="copyDataQualityReport">
           复制 Markdown 报告
+        </button>
+
+        <button :disabled="!dataQualityReport?.report" @click="downloadDataQualityReport">
+          下载 Markdown 报告
         </button>
       </div>
 
