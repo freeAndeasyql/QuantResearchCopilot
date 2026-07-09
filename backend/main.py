@@ -11,6 +11,7 @@ from data.csv_loader import (
     get_latest_close_map,
     get_recent_prices_by_code,
     get_stock_metrics_by_code,
+    get_stock_indicators_by_code,
 )
 
 from data.stocks import (
@@ -178,6 +179,23 @@ def get_stock_metrics(code: str):
         )
 
     return success_response(data=metrics)
+
+# 股票技术指标接口
+# 根据股票代码从 CSV 中计算 MA5、MA10、MA20
+@app.get("/api/stocks/{code}/indicators")
+def get_stock_indicators(code: str):
+    # 根据股票代码查找股票
+    stock = find_stock_by_code(code)
+
+    # 如果股票不存在，返回 404
+    if not stock:
+        raise HTTPException(status_code=404, detail="股票不存在")
+
+    # 从 daily_price.csv 计算技术指标
+    indicators = get_stock_indicators_by_code(code, limit=60)
+
+    # 如果没有指标数据，返回空列表
+    return success_response(data=indicators)
 
 
 # CSV 数据状态接口

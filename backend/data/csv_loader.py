@@ -363,3 +363,54 @@ def load_daily_price_meta():
             "start_date": "",
             "end_date": "",
         }
+
+# 根据股票代码计算技术指标
+# 当前先计算最基础的移动平均线：MA5、MA10、MA20
+def get_stock_indicators_by_code(stock_code: str, limit: int = 60):
+    df = load_daily_price()
+
+    # 如果 CSV 没有数据，直接返回空列表
+    if df.empty:
+        return []
+
+    # 如果缺少必要字段，也返回空列表
+    if "stock_code" not in df.columns or "trade_date" not in df.columns or "close" not in df.columns:
+        return []
+
+    # 只筛选当前股票的数据
+    stock_df = df[df["stock_code"] == stock_code].copy()
+
+    # 如果当前股票没有行情数据，返回空列表
+    if stock_df.empty:
+        return []
+
+    # 按交易日期升序排列
+    # 移动平均线必须按时间顺序计算
+    stock_df = stock_df.sort_values("trade_date")
+
+    # 确保收盘价是数字类型
+    stock_df["close"] = pd.to_numeric(stock_df["close"], errors="coerce")
+
+    # 计算移动平均线
+    # rolling(window=5) 表示每 5 条数据计算一次平均值
+    stock_df["ma5"] = stock_df["close"].rolling(window=5).mean()
+    stock_df["ma10"] = stock_df["close"].rolling(window=10).mean()
+    stock_df["ma20"] = stock_df["close"].rolling(window=20).mean()
+
+    # 只取最近 limit 条
+    stock_df = stock_df.tail(limit)
+
+    result = []
+
+    for _, row in stock_df.iterrows():
+        result.append(
+            {
+                "trade_date": row["trade_date"],
+                "close": None if pd.isna(row["close"]) else round(float(row["close"]), 2),
+                "ma5": None if pd.isna(row["ma5"]) else round(float(row["ma5"]), 2),
+                "ma10": None if pd.isna(row["ma10"]) else round(float(row["ma10"]), 2),
+                "ma20": None if pd.isna(row["ma20"]) else round(float(row["ma20"]), 2),
+            }
+        )
+
+    return result
