@@ -96,12 +96,6 @@ GET /api/health
 }
 ```
 
-### 字段说明
-
-| 字段   | 类型   | 说明         |
-| ------ | ------ | ------------ |
-| status | string | 后端服务状态 |
-
 ---
 
 ## 4. 股票列表接口
@@ -154,19 +148,6 @@ GET /api/stocks?keyword=贵州&page=1&page_size=5
   }
 }
 ```
-
-### 字段说明
-
-| 字段         | 类型   | 说明                              |
-| ------------ | ------ | --------------------------------- |
-| list         | array  | 股票列表                          |
-| total        | number | 筛选后的股票总数                  |
-| page         | number | 当前页码                          |
-| page_size    | number | 每页数量                          |
-| code         | string | 股票代码                          |
-| name         | string | 股票名称                          |
-| industry     | string | 所属行业                          |
-| latest_price | number | 最新价格，优先来自 CSV 最新收盘价 |
 
 ---
 
@@ -239,16 +220,6 @@ GET /api/stocks/600519
 }
 ```
 
-### 错误示例
-
-```json
-{
-  "code": 404,
-  "message": "股票不存在",
-  "data": null
-}
-```
-
 ---
 
 ## 7. 股票历史价格接口
@@ -295,13 +266,6 @@ GET /api/stocks/600519/prices
   ]
 }
 ```
-
-### 字段说明
-
-| 字段       | 类型   | 说明     |
-| ---------- | ------ | -------- |
-| trade_date | string | 交易日期 |
-| close      | number | 收盘价   |
 
 ---
 
@@ -369,16 +333,6 @@ GET /api/stocks/600519/metrics
 | period_days       | number | 统计区间天数     |
 | period_return     | number | 区间收益率       |
 
-### 错误示例
-
-```json
-{
-  "code": 404,
-  "message": "该股票没有足够的历史价格数据，无法计算收益指标",
-  "data": null
-}
-```
-
 ---
 
 ## 9. 股票技术指标接口
@@ -391,7 +345,7 @@ GET /api/stocks/{code}/indicators
 
 ### 接口说明
 
-根据股票代码，从 `daily_price.csv` 中读取最近 60 条行情数据，计算股票技术指标。
+根据股票代码，从 `daily_price.csv` 中读取最近 120 条行情数据，计算股票技术指标。
 
 当前支持的指标：
 
@@ -456,7 +410,91 @@ GET /api/stocks/600519/indicators
 
 ---
 
-## 10. 行情数据状态接口
+## 10. 股票技术指标解读接口
+
+### 接口地址
+
+```http
+GET /api/stocks/{code}/indicator-summary
+```
+
+### 接口说明
+
+根据股票最新收盘价、MA5、MA10、MA20，生成通俗的趋势解读。
+
+该接口用于前端展示“技术指标解读卡片”。
+
+注意：该接口只基于均线关系做规则判断，用于学习和辅助观察，不构成投资建议。
+
+### 路径参数
+
+| 参数 | 类型   | 必填 | 说明                    |
+| ---- | ------ | ---- | ----------------------- |
+| code | string | 是   | 股票代码，例如 `600519` |
+
+### 请求示例
+
+```http
+GET /api/stocks/600519/indicator-summary
+```
+
+### 响应示例
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "trade_date": "2026-07-09",
+    "close": 1500.25,
+    "ma5": 1498.32,
+    "ma10": 1495.67,
+    "ma20": 1488.21,
+    "trend": "偏强",
+    "summary": "当前收盘价高于 MA5、MA10、MA20，且短期均线在中期均线上方，走势相对偏强。",
+    "signals": [
+      "收盘价在 MA5 上方，短期价格表现较强",
+      "收盘价在 MA20 上方，价格仍处于近一个月均价上方"
+    ]
+  }
+}
+```
+
+### 字段说明
+
+| 字段       | 类型          | 说明                                                  |
+| ---------- | ------------- | ----------------------------------------------------- |
+| trade_date | string        | 最新交易日                                            |
+| close      | number / null | 最新收盘价                                            |
+| ma5        | number / null | 5 日移动平均线                                        |
+| ma10       | number / null | 10 日移动平均线                                       |
+| ma20       | number / null | 20 日移动平均线                                       |
+| trend      | string        | 趋势判断，例如 `偏强`、`偏弱`、`震荡偏强`、`震荡偏弱` |
+| summary    | string        | 通俗解读文案                                          |
+| signals    | string[]      | 关键信号列表                                          |
+
+### 数据不足示例
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "trade_date": "2026-01-05",
+    "close": 10.25,
+    "ma5": null,
+    "ma10": null,
+    "ma20": null,
+    "trend": "数据不足",
+    "summary": "当前历史数据不足，暂时无法形成完整均线解读。",
+    "signals": []
+  }
+}
+```
+
+---
+
+## 11. 行情数据状态接口
 
 ### 接口地址
 
@@ -515,22 +553,9 @@ GET /api/data/status
 }
 ```
 
-### 字段说明
-
-| 字段              | 类型    | 说明                                            |
-| ----------------- | ------- | ----------------------------------------------- |
-| exists            | boolean | CSV 文件是否存在                                |
-| source            | string  | 数据来源，例如 `BaoStock`、`AKShare`、`unknown` |
-| updated_at        | string  | 数据更新时间                                    |
-| start_date        | string  | 数据开始日期                                    |
-| end_date          | string  | 数据结束日期                                    |
-| latest_trade_date | string  | CSV 中最新交易日                                |
-| row_count         | number  | 数据总行数                                      |
-| stock_count       | number  | 股票数量                                        |
-
 ---
 
-## 11. 行情数据质量检查接口
+## 12. 行情数据质量检查接口
 
 ### 接口地址
 
@@ -591,43 +616,9 @@ GET /api/data/quality
 }
 ```
 
-### 字段说明
-
-| 字段                | 类型    | 说明                                             |
-| ------------------- | ------- | ------------------------------------------------ |
-| has_data            | boolean | 是否存在行情数据                                 |
-| status              | string  | 数据质量状态，例如 `normal`、`warning`、`danger` |
-| level               | string  | 中文状态说明，例如 `正常`、`警告`、`异常`        |
-| summary             | string  | 数据质量整体结论                                 |
-| row_count           | number  | 数据总行数                                       |
-| missing_value_count | number  | 缺失值数量                                       |
-| duplicate_row_count | number  | 重复行数量                                       |
-| missing_close_count | number  | 收盘价缺失数量                                   |
-| stock_record_counts | array   | 每只股票的数据记录数                             |
-
-### 异常数据示例
-
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "has_data": false,
-    "status": "danger",
-    "level": "异常",
-    "summary": "CSV 文件不存在或没有任何行情数据",
-    "row_count": 0,
-    "missing_value_count": 0,
-    "duplicate_row_count": 0,
-    "missing_close_count": 0,
-    "stock_record_counts": []
-  }
-}
-```
-
 ---
 
-## 12. 数据质量 Markdown 报告接口
+## 13. 数据质量 Markdown 报告接口
 
 ### 接口地址
 
@@ -668,15 +659,9 @@ GET /api/data/quality/report
 }
 ```
 
-### 字段说明
-
-| 字段   | 类型   | 说明                        |
-| ------ | ------ | --------------------------- |
-| report | string | Markdown 格式的数据质量报告 |
-
 ---
 
-## 13. 前端使用到的主要接口
+## 14. 前端使用到的主要接口
 
 ### 行情页 `/market`
 
@@ -689,6 +674,7 @@ GET /api/stocks/{code}
 GET /api/stocks/{code}/prices
 GET /api/stocks/{code}/metrics
 GET /api/stocks/{code}/indicators
+GET /api/stocks/{code}/indicator-summary
 ```
 
 ### 状态页 `/status`
@@ -704,7 +690,7 @@ GET /api/data/quality/report
 
 ---
 
-## 14. 当前数据文件说明
+## 15. 当前数据文件说明
 
 ### 行情数据文件
 
@@ -761,7 +747,28 @@ data/raw/daily_price_meta.json
 
 ---
 
-## 15. 后续计划接口
+## 16. 当前已完成能力
+
+当前项目已经具备：
+
+1. 股票列表查询；
+2. 股票搜索和行业筛选；
+3. 股票详情查看；
+4. CSV 行情数据读取；
+5. 股票历史收盘价展示；
+6. 收益指标计算；
+7. MA5、MA10、MA20 技术指标计算；
+8. 技术指标趋势解读；
+9. 行情数据状态检查；
+10. 数据质量检查；
+11. 数据质量 Markdown 报告生成；
+12. Markdown 报告复制；
+13. Markdown 报告下载；
+14. 前端 Markdown 渲染。
+
+---
+
+## 17. 后续计划接口
 
 后续可能新增：
 
