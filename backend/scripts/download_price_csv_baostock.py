@@ -1,3 +1,4 @@
+import json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -6,10 +7,14 @@ import baostock as bs
 import pandas as pd
 
 
+
+
 # 当前脚本路径：
 # backend/scripts/download_price_csv_baostock.py
 # parents[2] 可以回到项目根目录 quant-research-copilot
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
 
 # 输出目录：data/raw
 OUTPUT_DIR = PROJECT_ROOT / "data" / "raw"
@@ -19,6 +24,12 @@ OUTPUT_FILE = OUTPUT_DIR / "daily_price.csv"
 
 # 临时文件：下载成功后再替换正式 CSV，避免失败时覆盖旧数据
 TEMP_OUTPUT_FILE = OUTPUT_DIR / "daily_price_temp.csv"
+
+# 元信息文件：记录 daily_price.csv 是什么时候、通过什么数据源生成的
+META_FILE = OUTPUT_DIR / "daily_price_meta.json"
+OUTPUT_FILE = OUTPUT_DIR / "daily_price.csv"
+TEMP_OUTPUT_FILE = OUTPUT_DIR / "daily_price_temp.csv"
+META_FILE = OUTPUT_DIR / "daily_price_meta.json"
 
 
 # 股票代码列表
@@ -184,6 +195,20 @@ def main():
 
         # 临时文件写成功后，再替换正式文件
         os.replace(TEMP_OUTPUT_FILE, OUTPUT_FILE)
+
+        # 写入数据源元信息
+        # 这个文件可以让后端知道 daily_price.csv 来自哪个数据源
+        meta_data = {
+            "source": "BaoStock",
+            "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "start_date": START_DATE,
+            "end_date": END_DATE,
+            "stock_count": len(STOCK_CODES),
+            "row_count": len(result_df),
+        }
+
+        with open(META_FILE, "w", encoding="utf-8") as meta_file:
+            json.dump(meta_data, meta_file, ensure_ascii=False, indent=2)
 
         print(f"CSV 生成成功：{OUTPUT_FILE}")
         print(f"数据行数：{len(result_df)}")
