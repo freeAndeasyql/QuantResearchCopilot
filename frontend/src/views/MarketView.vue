@@ -8,6 +8,8 @@ import {
   getStockPrices,
   getStocks,
   getStockMetrics,
+  getStockIndicators,
+  type StockIndicatorItem,
   type StockItem,
   type StockPriceItem,
   type StockMetrics,
@@ -43,6 +45,9 @@ const hasFilter = computed(() => {
 
 // 价格状态
 const stockPrices = ref<StockPriceItem[]>([])
+
+// 股票技术指标数据：收盘价、MA5、MA10、MA20
+const stockIndicators = ref<StockIndicatorItem[]>([])
 
 // 增加防抖
 let searchTimer: number | undefined
@@ -87,20 +92,23 @@ const fetchIndustries = async () => {
 const selectStock = async (code: string) => {
   detailLoading.value = true
   detailError.value = ''
+  // 清空上一次股票的数据，避免切换股票时短暂显示旧数据
   stockPrices.value = []
   stockMetrics.value = null
-
+  stockIndicators.value = []
   try {
-    // 同时请求详情和价格。
-    const [detailRes, pricesRes, metricsRes] = await Promise.all([
+    // 同时请求详情、历史价格、收益指标、技术指标
+    const [detailRes, pricesRes, metricsRes, indicatorsRes] = await Promise.all([
       getStockDetail(code),
       getStockPrices(code),
       getStockMetrics(code),
+      getStockIndicators(code),
     ])
 
     selectedStock.value = detailRes.data.data
     stockPrices.value = pricesRes.data.data
     stockMetrics.value = metricsRes.data.data
+    stockIndicators.value = indicatorsRes.data.data
   } catch (err) {
     detailError.value = err instanceof Error ? err.message : '获取股票详情失败'
   } finally {
@@ -299,7 +307,7 @@ onMounted(() => {
     <!-- 价格走势 -->
     <div v-if="stockPrices.length" class="price-chart-section">
       <h3>价格走势</h3>
-      <StockPriceChart :prices="stockPrices" />
+      <StockPriceChart :prices="stockPrices" :indicators="stockIndicators" />
     </div>
     <!-- 暂无数据 -->
     <p v-if="selectedStock && !stockPrices.length && !detailLoading" class="empty">

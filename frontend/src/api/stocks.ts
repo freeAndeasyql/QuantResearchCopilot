@@ -115,3 +115,17 @@ export interface DataQualityReport {
 export const getDataQualityReport = () => {
   return request.get<ApiResponse<DataQualityReport>>('/api/data/quality/report')
 }
+
+// 技术指标类型和接口
+export interface StockIndicatorItem {
+  trade_date: string
+  close: number | null
+  ma5: number | null
+  ma10: number | null
+  ma20: number | null
+}
+
+// 获取股票技术指标
+export const getStockIndicators = (code: string) => {
+  return request.get<ApiResponse<StockIndicatorItem[]>>(`/api/stocks/${code}/indicators`)
+}
