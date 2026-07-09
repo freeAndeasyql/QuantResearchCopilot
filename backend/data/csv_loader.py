@@ -366,7 +366,7 @@ def load_daily_price_meta():
 
 # 根据股票代码计算技术指标
 # 当前先计算最基础的移动平均线：MA5、MA10、MA20
-def get_stock_indicators_by_code(stock_code: str, limit: int = 60):
+def get_stock_indicators_by_code(stock_code: str, limit: int = 120):
     df = load_daily_price()
 
     # 如果 CSV 没有数据，直接返回空列表
@@ -414,3 +414,73 @@ def get_stock_indicators_by_code(stock_code: str, limit: int = 60):
         )
 
     return result
+
+# 根据 MA5、MA10、MA20 生成通俗解读
+def get_stock_indicator_summary_by_code(stock_code: str):
+    indicators = get_stock_indicators_by_code(stock_code, limit=120)
+
+    # 如果没有技术指标数据，返回空结果
+    if not indicators:
+        return None
+
+    # 取最近一个交易日的数据
+    latest = indicators[-1]
+
+    close = latest.get("close")
+    ma5 = latest.get("ma5")
+    ma10 = latest.get("ma10")
+    ma20 = latest.get("ma20")
+
+    # 如果均线还没计算出来，说明数据不够
+    if close is None or ma5 is None or ma10 is None or ma20 is None:
+        return {
+            "trade_date": latest.get("trade_date"),
+            "close": close,
+            "ma5": ma5,
+            "ma10": ma10,
+            "ma20": ma20,
+            "trend": "数据不足",
+            "summary": "当前历史数据不足，暂时无法形成完整均线解读。",
+            "signals": [],
+        }
+
+    signals = []
+
+    # 判断收盘价和均线的位置关系
+    if close > ma5:
+        signals.append("收盘价在 MA5 上方，短期价格表现较强")
+    else:
+        signals.append("收盘价在 MA5 下方，短期价格表现偏弱")
+
+    if close > ma20:
+        signals.append("收盘价在 MA20 上方，价格仍处于近一个月均价上方")
+    else:
+        signals.append("收盘价在 MA20 下方，价格低于近一个月均价")
+
+    # 判断均线排列
+    if close > ma5 > ma10 > ma20:
+        trend = "偏强"
+        summary = "当前收盘价高于 MA5、MA10、MA20，且短期均线在中期均线上方，走势相对偏强。"
+    elif close < ma5 < ma10 < ma20:
+        trend = "偏弱"
+        summary = "当前收盘价低于 MA5、MA10、MA20，且短期均线在中期均线下方，走势相对偏弱。"
+    elif close > ma20:
+        trend = "震荡偏强"
+        summary = "当前收盘价位于 MA20 上方，但均线排列不完全强势，说明走势可能处于震荡偏强状态。"
+    elif close < ma20:
+        trend = "震荡偏弱"
+        summary = "当前收盘价位于 MA20 下方，但均线排列不完全弱势，说明走势可能处于震荡偏弱状态。"
+    else:
+        trend = "震荡"
+        summary = "当前价格与均线关系不明显，走势暂时偏震荡。"
+
+    return {
+        "trade_date": latest.get("trade_date"),
+        "close": close,
+        "ma5": ma5,
+        "ma10": ma10,
+        "ma20": ma20,
+        "trend": trend,
+        "summary": summary,
+        "signals": signals,
+    }

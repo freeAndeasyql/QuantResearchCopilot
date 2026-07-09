@@ -12,6 +12,7 @@ from data.csv_loader import (
     get_recent_prices_by_code,
     get_stock_metrics_by_code,
     get_stock_indicators_by_code,
+    get_stock_indicator_summary_by_code
 )
 
 from data.stocks import (
@@ -192,10 +193,26 @@ def get_stock_indicators(code: str):
         raise HTTPException(status_code=404, detail="股票不存在")
 
     # 从 daily_price.csv 计算技术指标
-    indicators = get_stock_indicators_by_code(code, limit=60)
+    indicators = get_stock_indicators_by_code(code, limit=120)
 
     # 如果没有指标数据，返回空列表
     return success_response(data=indicators)
+
+# 股票技术指标解读接口
+# 根据最新收盘价、MA5、MA10、MA20 生成通俗趋势解读
+@app.get("/api/stocks/{code}/indicator-summary")
+def get_stock_indicator_summary(code: str):
+    stock = find_stock_by_code(code)
+
+    if not stock:
+        raise HTTPException(status_code=404, detail="股票不存在")
+
+    summary = get_stock_indicator_summary_by_code(code)
+
+    if not summary:
+        raise HTTPException(status_code=404, detail="该股票没有足够的技术指标数据")
+
+    return success_response(data=summary)
 
 
 # CSV 数据状态接口
