@@ -18,6 +18,7 @@
 - TypeScript
 - Axios
 - ECharts
+- markdown-it
 
 ---
 
@@ -380,7 +381,82 @@ GET /api/stocks/600519/metrics
 
 ---
 
-## 9. 行情数据状态接口
+## 9. 股票技术指标接口
+
+### 接口地址
+
+```http
+GET /api/stocks/{code}/indicators
+```
+
+### 接口说明
+
+根据股票代码，从 `daily_price.csv` 中读取最近 60 条行情数据，计算股票技术指标。
+
+当前支持的指标：
+
+- 收盘价
+- MA5：5 日移动平均线
+- MA10：10 日移动平均线
+- MA20：20 日移动平均线
+
+该接口主要用于前端走势图展示收盘价和多条均线。
+
+### 路径参数
+
+| 参数 | 类型   | 必填 | 说明                    |
+| ---- | ------ | ---- | ----------------------- |
+| code | string | 是   | 股票代码，例如 `600519` |
+
+### 请求示例
+
+```http
+GET /api/stocks/600519/indicators
+```
+
+### 响应示例
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "trade_date": "2026-06-01",
+      "close": 1500.25,
+      "ma5": 1498.32,
+      "ma10": 1495.67,
+      "ma20": 1488.21
+    }
+  ]
+}
+```
+
+### 字段说明
+
+| 字段       | 类型          | 说明            |
+| ---------- | ------------- | --------------- |
+| trade_date | string        | 交易日期        |
+| close      | number / null | 收盘价          |
+| ma5        | number / null | 5 日移动平均线  |
+| ma10       | number / null | 10 日移动平均线 |
+| ma20       | number / null | 20 日移动平均线 |
+
+### 注意事项
+
+前几条数据的 `ma5`、`ma10`、`ma20` 可能为 `null`。
+
+原因是移动平均线需要足够的历史数据才能计算：
+
+| 指标 | 至少需要数据条数 |
+| ---- | ---------------: |
+| MA5  |             5 条 |
+| MA10 |            10 条 |
+| MA20 |            20 条 |
+
+---
+
+## 10. 行情数据状态接口
 
 ### 接口地址
 
@@ -454,7 +530,7 @@ GET /api/data/status
 
 ---
 
-## 10. 行情数据质量检查接口
+## 11. 行情数据质量检查接口
 
 ### 接口地址
 
@@ -551,7 +627,7 @@ GET /api/data/quality
 
 ---
 
-## 11. 数据质量 Markdown 报告接口
+## 12. 数据质量 Markdown 报告接口
 
 ### 接口地址
 
@@ -600,7 +676,7 @@ GET /api/data/quality/report
 
 ---
 
-## 12. 前端使用到的主要接口
+## 13. 前端使用到的主要接口
 
 ### 行情页 `/market`
 
@@ -612,6 +688,7 @@ GET /api/industries
 GET /api/stocks/{code}
 GET /api/stocks/{code}/prices
 GET /api/stocks/{code}/metrics
+GET /api/stocks/{code}/indicators
 ```
 
 ### 状态页 `/status`
@@ -627,7 +704,7 @@ GET /api/data/quality/report
 
 ---
 
-## 13. 当前数据文件说明
+## 14. 当前数据文件说明
 
 ### 行情数据文件
 
@@ -684,7 +761,7 @@ data/raw/daily_price_meta.json
 
 ---
 
-## 14. 后续计划接口
+## 15. 后续计划接口
 
 后续可能新增：
 
