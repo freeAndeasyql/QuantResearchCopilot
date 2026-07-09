@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
+import json
 
 
 # 当前文件位置：
@@ -15,6 +16,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # 拼出稳定的 CSV 绝对路径
 # 这样不管在哪个目录启动 uvicorn，都能找到 data/raw/daily_price.csv
 DAILY_PRICE_FILE = PROJECT_ROOT / "data" / "raw" / "daily_price.csv"
+
+# 行情数据元信息文件
+# 用来记录 daily_price.csv 来自哪个数据源、什么时候更新
+DAILY_PRICE_META_FILE = PROJECT_ROOT / "data" / "raw" / "daily_price_meta.json"
 
 
 # 读取日线行情 CSV
@@ -173,33 +178,61 @@ def get_latest_close_map():
 
 
 # 获取 CSV 数据状态
+# 1. 先读取 daily_price_meta.json
+# 2. 再读取 daily_price.csv
+# 3. 如果元信息文件不存在，也不会报错
+# 4. 接口统一返回 source、updated_at、start_date、end_date
+# 获取 daily_price.csv 当前状态
 def get_daily_price_status():
-    df = load_daily_price()
+    # 先读取数据源元信息
+    meta = load_daily_price_meta()
 
-    # 如果 CSV 没有数据，返回空状态
-    if df.empty:
+    # 如果 CSV 文件不存在，返回基础状态
+    if not DAILY_PRICE_FILE.exists():
         return {
-            "source": "daily_price.csv",
             "exists": False,
-            "latest_trade_date": None,
+            "source": meta.get("source", "unknown"),
+            "updated_at": meta.get("updated_at", ""),
+            "start_date": meta.get("start_date", ""),
+            "end_date": meta.get("end_date", ""),
+            "latest_trade_date": "",
             "row_count": 0,
             "stock_count": 0,
         }
 
-    # 获取最新交易日
-    latest_trade_date = df["trade_date"].max()
+    df = load_daily_price()
 
-    # 获取数据总行数
-    row_count = len(df)
+    # 如果 CSV 存在但没有数据
+    if df.empty:
+        return {
+            "exists": True,
+            "source": meta.get("source", "unknown"),
+            "updated_at": meta.get("updated_at", ""),
+            "start_date": meta.get("start_date", ""),
+            "end_date": meta.get("end_date", ""),
+            "latest_trade_date": "",
+            "row_count": 0,
+            "stock_count": 0,
+        }
 
-    # 获取股票数量
-    stock_count = df["stock_code"].nunique()
+    latest_trade_date = ""
+
+    if "trade_date" in df.columns:
+        latest_trade_date = str(df["trade_date"].max())
+
+    stock_count = 0
+
+    if "stock_code" in df.columns:
+        stock_count = int(df["stock_code"].nunique())
 
     return {
-        "source": "daily_price.csv",
         "exists": True,
+        "source": meta.get("source", "unknown"),
+        "updated_at": meta.get("updated_at", ""),
+        "start_date": meta.get("start_date", ""),
+        "end_date": meta.get("end_date", ""),
         "latest_trade_date": latest_trade_date,
-        "row_count": row_count,
+        "row_count": len(df),
         "stock_count": stock_count,
     }
 
@@ -305,3 +338,28 @@ def generate_daily_price_quality_report():
 """
 
     return report
+
+
+# 读取行情数据元信息
+def load_daily_price_meta():
+    # 如果元信息文件不存在，返回默认值
+    if not DAILY_PRICE_META_FILE.exists():
+        return {
+            "source": "unknown",
+            "updated_at": "",
+            "start_date": "",
+            "end_date": "",
+        }
+
+    try:
+        with open(DAILY_PRICE_META_FILE, "r", encoding="utf-8") as meta_file:
+            return json.load(meta_file)
+
+    except Exception:
+        # 如果 JSON 文件格式坏了，也不要让接口崩掉
+        return {
+            "source": "unknown",
+            "updated_at": "",
+            "start_date": "",
+            "end_date": "",
+        }

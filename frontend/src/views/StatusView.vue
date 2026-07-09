@@ -126,7 +126,10 @@ const checkDataQualityReport = async () => {
       <p v-if="dataStatusError" class="error">{{ dataStatusError }}</p>
 
       <div v-if="dataStatus" class="status-list">
-        <p>数据来源：{{ dataStatus.source }}</p>
+        <p>数据来源：{{ dataStatus.source || 'unknown' }}</p>
+        <p>更新时间：{{ dataStatus.updated_at || '暂无' }}</p>
+        <p>开始日期：{{ dataStatus.start_date || '暂无' }}</p>
+        <p>结束日期：{{ dataStatus.end_date || '暂无' }}</p>
         <p>文件状态：{{ dataStatus.exists ? '已存在' : '不存在' }}</p>
         <p>最新交易日：{{ dataStatus.latest_trade_date || '暂无' }}</p>
         <p>数据行数：{{ dataStatus.row_count }}</p>

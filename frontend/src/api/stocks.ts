@@ -70,9 +70,12 @@ export const getStockMetrics = (code: string) => {
 }
 
 export interface DataStatus {
-  source: string
   exists: boolean
-  latest_trade_date: string | null
+  source: string
+  updated_at: string
+  start_date: string
+  end_date: string
+  latest_trade_date: string
   row_count: number
   stock_count: number
 }
