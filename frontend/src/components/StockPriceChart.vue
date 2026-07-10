@@ -45,6 +45,7 @@ const updateChart = () => {
   const ma5List = chartData.map((item) => item.ma5)
   const ma10List = chartData.map((item) => item.ma10)
   const ma20List = chartData.map((item) => item.ma20)
+  const volumeList = chartData.map((item) => item.volume)
 
   // clear 可以避免 ECharts 继续保留旧的单线配置
   chartInstance.clear()
@@ -56,22 +57,29 @@ const updateChart = () => {
       },
       legend: {
         top: 0,
-        data: ['收盘价', 'MA5', 'MA10', 'MA20'],
+        data: ['收盘价', 'MA5', 'MA10', 'MA20', '成交量'],
       },
       grid: {
         top: 48,
-        left: 48,
-        right: 24,
+        left: 56,
+        right: 56,
         bottom: 40,
       },
       xAxis: {
         type: 'category',
         data: tradeDates,
       },
-      yAxis: {
-        type: 'value',
-        scale: true,
-      },
+      yAxis: [
+        {
+          type: 'value',
+          scale: true,
+          name: '价格',
+        },
+        {
+          type: 'value',
+          name: '成交量',
+        },
+      ],
       series: [
         {
           name: '收盘价',
@@ -100,6 +108,12 @@ const updateChart = () => {
           data: ma20List,
           smooth: true,
           showSymbol: false,
+        },
+        {
+          name: '成交量',
+          type: 'bar',
+          yAxisIndex: 1,
+          data: volumeList,
         },
       ],
     },

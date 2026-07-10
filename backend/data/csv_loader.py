@@ -391,6 +391,14 @@ def get_stock_indicators_by_code(stock_code: str, limit: int = 120):
     # 确保收盘价是数字类型
     stock_df["close"] = pd.to_numeric(stock_df["close"], errors="coerce")
 
+
+    # 确保成交量是数字类型
+    # 如果 CSV 中没有 volume 字段，就补一个空值列
+    if "volume" in stock_df.columns:
+        stock_df["volume"] = pd.to_numeric(stock_df["volume"], errors="coerce")
+    else:
+        stock_df["volume"] = None
+
     # 计算移动平均线
     # rolling(window=5) 表示每 5 条数据计算一次平均值
     stock_df["ma5"] = stock_df["close"].rolling(window=5).mean()
@@ -410,6 +418,7 @@ def get_stock_indicators_by_code(stock_code: str, limit: int = 120):
                 "ma5": None if pd.isna(row["ma5"]) else round(float(row["ma5"]), 2),
                 "ma10": None if pd.isna(row["ma10"]) else round(float(row["ma10"]), 2),
                 "ma20": None if pd.isna(row["ma20"]) else round(float(row["ma20"]), 2),
+                "volume": None if pd.isna(row["volume"]) else int(row["volume"]),
             }
         )
 
