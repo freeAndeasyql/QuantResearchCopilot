@@ -12,7 +12,8 @@ from data.csv_loader import (
     get_recent_prices_by_code,
     get_stock_metrics_by_code,
     get_stock_indicators_by_code,
-    get_stock_indicator_summary_by_code
+    get_stock_indicator_summary_by_code,
+    get_stock_volume_summary_by_code,
 )
 
 from data.stocks import (
@@ -240,3 +241,27 @@ def get_data_quality_report():
     report = generate_daily_price_quality_report()
 
     return success_response(data={"report": report})
+
+# 股票成交量解读接口
+# 根据最新价格变化和成交量变化生成通俗的量价解读
+@app.get("/api/stocks/{code}/volume-summary")
+def get_stock_volume_summary(code: str):
+    # 先确认股票是否存在
+    stock = find_stock_by_code(code)
+
+    if not stock:
+        raise HTTPException(
+            status_code=404,
+            detail="股票不存在",
+        )
+
+    # 生成成交量解读
+    volume_summary = get_stock_volume_summary_by_code(code)
+
+    if not volume_summary:
+        raise HTTPException(
+            status_code=404,
+            detail="该股票没有足够的成交量数据",
+        )
+
+    return success_response(data=volume_summary)

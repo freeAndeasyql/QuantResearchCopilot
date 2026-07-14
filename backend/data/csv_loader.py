@@ -523,3 +523,191 @@ def get_stock_indicator_summary_by_code(stock_code: str):
         "summary": summary,
         "signals": signals,
     }
+
+# 根据股票代码生成成交量解读
+def get_stock_volume_summary_by_code(stock_code: str):
+    df = load_daily_price()
+
+    # CSV 没有数据时，直接返回空结果
+    if df.empty:
+        return None
+
+    # 成交量解读需要这些字段
+    required_columns = {
+        "stock_code",
+        "trade_date",
+        "close",
+        "volume",
+    }
+
+    # 如果缺少必要字段，无法继续计算
+    if not required_columns.issubset(df.columns):
+        return None
+
+    # 筛选当前股票的数据
+    stock_df = df[df["stock_code"] == stock_code].copy()
+
+    if stock_df.empty:
+        return None
+
+    # 把收盘价和成交量转换为数字
+    # 无法转换的内容会变成空值
+    stock_df["close"] = pd.to_numeric(
+        stock_df["close"],
+        errors="coerce",
+    )
+    stock_df["volume"] = pd.to_numeric(
+        stock_df["volume"],
+        errors="coerce",
+    )
+
+    # 删除缺少日期、收盘价或成交量的数据
+    stock_df = stock_df.dropna(
+        subset=["trade_date", "close", "volume"]
+    )
+
+    # 按交易日期升序排列
+    stock_df = stock_df.sort_values("trade_date")
+
+    # 当前交易日 + 前5个交易日，一共至少需要6条数据
+    if len(stock_df) < 6:
+        return {
+            "trade_date": (
+                str(stock_df.iloc[-1]["trade_date"])
+                if not stock_df.empty
+                else ""
+            ),
+            "signal": "数据不足",
+            "price_status": "暂无",
+            "volume_status": "暂无",
+            "summary": "当前历史数据不足，暂时无法完成成交量解读。",
+            "latest_close": None,
+            "previous_close": None,
+            "change_pct": None,
+            "latest_volume": None,
+            "average_volume_5d": None,
+            "volume_ratio": None,
+        }
+
+    # 只取最近6个交易日
+    recent_df = stock_df.tail(6)
+
+    # 最后一条是最新交易日
+    latest_row = recent_df.iloc[-1]
+
+    # 倒数第二条是上一交易日
+    previous_row = recent_df.iloc[-2]
+
+    # 前5个交易日，不包括最新交易日
+    previous_five_days = recent_df.iloc[:-1]
+
+    latest_close = float(latest_row["close"])
+    previous_close = float(previous_row["close"])
+    latest_volume = float(latest_row["volume"])
+
+    # 计算前5个交易日的平均成交量
+    average_volume_5d = float(
+        previous_five_days["volume"].mean()
+    )
+
+    # 计算最新成交量相对前5日平均成交量的比例
+    volume_ratio = (
+        latest_volume / average_volume_5d
+        if average_volume_5d > 0
+        else None
+    )
+
+    # 计算最新一个交易日的涨跌幅
+    change_pct = (
+        (latest_close - previous_close)
+        / previous_close
+        * 100
+        if previous_close != 0
+        else None
+    )
+
+    # 判断价格方向
+    if change_pct is None:
+        price_status = "暂无"
+    elif change_pct > 0:
+        price_status = "上涨"
+    elif change_pct < 0:
+        price_status = "下跌"
+    else:
+        price_status = "平盘"
+
+    # 判断成交量状态
+    if volume_ratio is None:
+        volume_status = "暂无"
+    elif volume_ratio >= 1.2:
+        volume_status = "放量"
+    elif volume_ratio <= 0.8:
+        volume_status = "缩量"
+    else:
+        volume_status = "量能平稳"
+
+    # 根据价格和成交量的组合生成通俗解读
+    if price_status == "上涨" and volume_status == "放量":
+        signal = "放量上涨"
+        summary = (
+            "股价上涨的同时成交量明显增加，"
+            "说明市场参与度有所提升，短期走势相对活跃。"
+        )
+
+    elif price_status == "下跌" and volume_status == "放量":
+        signal = "放量下跌"
+        summary = (
+            "股价下跌的同时成交量明显增加，"
+            "说明卖出压力可能有所增强，需要注意短期风险。"
+        )
+
+    elif price_status == "上涨" and volume_status == "缩量":
+        signal = "缩量上涨"
+        summary = (
+            "股价上涨但成交量减少，"
+            "说明上涨过程中市场参与度相对有限，后续持续性仍需观察。"
+        )
+
+    elif price_status == "下跌" and volume_status == "缩量":
+        signal = "缩量下跌"
+        summary = (
+            "股价下跌但成交量减少，"
+            "说明市场交易活跃度下降，可能处于观望状态。"
+        )
+
+    elif price_status == "平盘":
+        signal = "价格平稳"
+        summary = (
+            "最新收盘价与上一交易日基本持平，"
+            f"当前成交量状态为{volume_status}。"
+        )
+
+    else:
+        signal = f"{volume_status}{price_status}"
+        summary = (
+            f"当前股价表现为{price_status}，"
+            f"成交量表现为{volume_status}，"
+            "暂未形成特别明显的量价组合信号。"
+        )
+
+    return {
+        "trade_date": str(latest_row["trade_date"]),
+        "signal": signal,
+        "price_status": price_status,
+        "volume_status": volume_status,
+        "summary": summary,
+        "latest_close": round(latest_close, 2),
+        "previous_close": round(previous_close, 2),
+        "change_pct": (
+            None
+            if change_pct is None
+            else round(change_pct, 2)
+        ),
+        "latest_volume": int(latest_volume),
+        "average_volume_5d": round(average_volume_5d, 2),
+        "volume_ratio": (
+            None
+            if volume_ratio is None
+            else round(volume_ratio, 2)
+        ),
+    }
