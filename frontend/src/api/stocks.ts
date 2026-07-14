@@ -123,6 +123,7 @@ export interface StockIndicatorItem {
   ma5: number | null
   ma10: number | null
   ma20: number | null
+  volume: number | null
 }
 
 // 获取股票技术指标

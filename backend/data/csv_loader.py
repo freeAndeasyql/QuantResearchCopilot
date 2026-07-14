@@ -391,6 +391,16 @@ def get_stock_indicators_by_code(stock_code: str, limit: int = 120):
     # 确保收盘价是数字类型
     stock_df["close"] = pd.to_numeric(stock_df["close"], errors="coerce")
 
+    # 确保成交量是数字类型
+    # 如果 CSV 中没有 volume 字段，就补充为空值
+    if "volume" in stock_df.columns:
+        stock_df["volume"] = pd.to_numeric(
+            stock_df["volume"],
+            errors="coerce",
+        )
+    else:
+        stock_df["volume"] = pd.NA
+
 
     # 确保成交量是数字类型
     # 如果 CSV 中没有 volume 字段，就补一个空值列
@@ -412,15 +422,35 @@ def get_stock_indicators_by_code(stock_code: str, limit: int = 120):
 
     for _, row in stock_df.iterrows():
         result.append(
-            {
-                "trade_date": row["trade_date"],
-                "close": None if pd.isna(row["close"]) else round(float(row["close"]), 2),
-                "ma5": None if pd.isna(row["ma5"]) else round(float(row["ma5"]), 2),
-                "ma10": None if pd.isna(row["ma10"]) else round(float(row["ma10"]), 2),
-                "ma20": None if pd.isna(row["ma20"]) else round(float(row["ma20"]), 2),
-                "volume": None if pd.isna(row["volume"]) else int(row["volume"]),
-            }
-        )
+        {
+            "trade_date": row["trade_date"],
+            "close": (
+                None
+                if pd.isna(row["close"])
+                else round(float(row["close"]), 2)
+            ),
+            "ma5": (
+                None
+                if pd.isna(row["ma5"])
+                else round(float(row["ma5"]), 2)
+            ),
+            "ma10": (
+                None
+                if pd.isna(row["ma10"])
+                else round(float(row["ma10"]), 2)
+            ),
+            "ma20": (
+                None
+                if pd.isna(row["ma20"])
+                else round(float(row["ma20"]), 2)
+            ),
+            "volume": (
+                None
+                if pd.isna(row["volume"])
+                else int(float(row["volume"]))
+            ),
+    }
+)
 
     return result
 
