@@ -166,3 +166,30 @@ export interface StockVolumeSummary {
 export const getStockVolumeSummary = (code: string) => {
   return request.get<ApiResponse<StockVolumeSummary>>(`/api/stocks/${code}/volume-summary`)
 }
+
+// 综合分析中的单项评分依据
+export interface StockAnalysisScoreDetail {
+  dimension: string
+  value: string | number | null
+  score: number
+}
+
+// 股票综合分析结果
+export interface StockAnalysisSummary {
+  stock_code: string
+  stock_name: string
+  industry: string
+  trade_date: string
+  overall_view: string
+  score: number
+  summary: string
+  highlights: string[]
+  risks: string[]
+  score_details: StockAnalysisScoreDetail[]
+  disclaimer: string
+}
+
+// 获取股票综合分析
+export const getStockAnalysisSummary = (code: string) => {
+  return request.get<ApiResponse<StockAnalysisSummary>>(`/api/stocks/${code}/analysis-summary`)
+}

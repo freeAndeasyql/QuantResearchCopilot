@@ -11,6 +11,8 @@ import {
   getStockIndicators,
   getStockIndicatorSummary,
   getStockVolumeSummary,
+  getStockAnalysisSummary,
+  type StockAnalysisSummary,
   type StockVolumeSummary,
   type StockIndicatorSummary,
   type StockIndicatorItem,
@@ -58,6 +60,9 @@ const indicatorSummary = ref<StockIndicatorSummary | null>(null)
 
 // 当前股票的成交量解读
 const volumeSummary = ref<StockVolumeSummary | null>(null)
+
+// 当前股票的综合分析结果
+const analysisSummary = ref<StockAnalysisSummary | null>(null)
 
 // 增加防抖
 let searchTimer: number | undefined
@@ -125,30 +130,73 @@ const formatPercentage = (value: number | null) => {
   return `${prefix}${value.toFixed(2)}%`
 }
 
+// 根据综合分数返回带正负号的显示文本
+const formatAnalysisScore = (score: number) => {
+  return score > 0 ? `+${score}` : String(score)
+}
+
+// 根据评分返回对应的样式名称
+const getScoreClass = (score: number) => {
+  if (score > 0) {
+    return 'is-positive'
+  }
+
+  if (score < 0) {
+    return 'is-negative'
+  }
+
+  return 'is-neutral'
+}
+
+// 区间收益的 value 是数字，展示时补充百分号
+const formatScoreDetailValue = (detail: { dimension: string; value: string | number | null }) => {
+  if (detail.value === null || detail.value === '') {
+    return '暂无'
+  }
+
+  if (detail.dimension === '区间收益' && typeof detail.value === 'number') {
+    const prefix = detail.value > 0 ? '+' : ''
+
+    return `${prefix}${detail.value.toFixed(2)}%`
+  }
+
+  return String(detail.value)
+}
+
 // 点击表格行时调用
 // 获取单只股票详情、历史价格、收益指标、技术指标和技术指标解读
+
 const selectStock = async (code: string) => {
   detailLoading.value = true
   detailError.value = ''
 
-  // 清空上一只股票的数据，避免切换时短暂显示旧内容
+  // 清空上一只股票的数据，避免切换股票时展示旧内容
   stockPrices.value = []
   stockMetrics.value = null
   stockIndicators.value = []
   indicatorSummary.value = null
   volumeSummary.value = null
+  analysisSummary.value = null
 
   try {
-    // 同时请求多个接口，减少页面等待时间
-    const [detailRes, pricesRes, metricsRes, indicatorsRes, indicatorSummaryRes, volumeSummaryRes] =
-      await Promise.all([
-        getStockDetail(code),
-        getStockPrices(code),
-        getStockMetrics(code),
-        getStockIndicators(code),
-        getStockIndicatorSummary(code),
-        getStockVolumeSummary(code),
-      ])
+    // 同时请求股票详情和各项分析数据
+    const [
+      detailRes,
+      pricesRes,
+      metricsRes,
+      indicatorsRes,
+      indicatorSummaryRes,
+      volumeSummaryRes,
+      analysisSummaryRes,
+    ] = await Promise.all([
+      getStockDetail(code),
+      getStockPrices(code),
+      getStockMetrics(code),
+      getStockIndicators(code),
+      getStockIndicatorSummary(code),
+      getStockVolumeSummary(code),
+      getStockAnalysisSummary(code),
+    ])
 
     selectedStock.value = detailRes.data.data
     stockPrices.value = pricesRes.data.data
@@ -156,6 +204,7 @@ const selectStock = async (code: string) => {
     stockIndicators.value = indicatorsRes.data.data
     indicatorSummary.value = indicatorSummaryRes.data.data
     volumeSummary.value = volumeSummaryRes.data.data
+    analysisSummary.value = analysisSummaryRes.data.data
   } catch (err) {
     detailError.value = err instanceof Error ? err.message : '获取股票详情失败'
   } finally {
@@ -349,6 +398,86 @@ onMounted(() => {
           {{ formatChange(stockMetrics.period_return) }}%
         </strong>
       </div>
+    </div>
+    <!-- 股票综合分析 -->
+    <div v-if="analysisSummary" class="analysis-summary-card">
+      <div class="analysis-summary-header">
+        <div>
+          <h3>股票综合分析</h3>
+
+          <p>
+            {{ analysisSummary.stock_name }}
+            ·
+            {{ analysisSummary.stock_code }}
+            ·
+            {{ analysisSummary.industry }}
+          </p>
+        </div>
+
+        <div class="analysis-overview">
+          <span class="analysis-view-tag">
+            {{ analysisSummary.overall_view }}
+          </span>
+
+          <strong :class="getScoreClass(analysisSummary.score)">
+            {{ formatAnalysisScore(analysisSummary.score) }} 分
+          </strong>
+        </div>
+      </div>
+
+      <p class="analysis-date">分析日期：{{ analysisSummary.trade_date || '暂无' }}</p>
+
+      <p class="analysis-summary-text">
+        {{ analysisSummary.summary }}
+      </p>
+
+      <div class="analysis-score-section">
+        <h4>评分依据</h4>
+
+        <div class="analysis-score-grid">
+          <div
+            v-for="detail in analysisSummary.score_details"
+            :key="detail.dimension"
+            class="analysis-score-item"
+          >
+            <span>{{ detail.dimension }}</span>
+
+            <strong>
+              {{ formatScoreDetailValue(detail) }}
+            </strong>
+
+            <em :class="getScoreClass(detail.score)">
+              {{ formatAnalysisScore(detail.score) }} 分
+            </em>
+          </div>
+        </div>
+      </div>
+
+      <div class="analysis-message-grid">
+        <div class="analysis-message-box highlight-box">
+          <h4>积极信号</h4>
+
+          <ul>
+            <li v-for="highlight in analysisSummary.highlights" :key="highlight">
+              {{ highlight }}
+            </li>
+          </ul>
+        </div>
+
+        <div class="analysis-message-box risk-box">
+          <h4>风险提示</h4>
+
+          <ul>
+            <li v-for="risk in analysisSummary.risks" :key="risk">
+              {{ risk }}
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="analysis-disclaimer">
+        {{ analysisSummary.disclaimer }}
+      </p>
     </div>
 
     <!-- 技术指标解读 -->
@@ -863,6 +992,181 @@ onMounted(() => {
 @media (max-width: 900px) {
   .indicator-values {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.analysis-summary-card {
+  margin-top: 16px;
+  padding: 20px;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.analysis-summary-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  h3 {
+    margin: 0;
+    font-size: 20px;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: #6b7280;
+    font-size: 14px;
+  }
+}
+
+.analysis-overview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  strong {
+    font-size: 18px;
+  }
+}
+
+.analysis-view-tag {
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.analysis-date {
+  margin: 14px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.analysis-summary-text {
+  margin: 12px 0 0;
+  color: #374151;
+  line-height: 1.8;
+}
+
+.analysis-score-section {
+  margin-top: 20px;
+
+  h4 {
+    margin: 0 0 10px;
+  }
+}
+
+.analysis-score-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.analysis-score-item {
+  padding: 14px;
+  border-radius: 10px;
+  background: #ffffff;
+
+  span,
+  strong,
+  em {
+    display: block;
+  }
+
+  span {
+    color: #6b7280;
+    font-size: 13px;
+  }
+
+  strong {
+    margin-top: 8px;
+    color: #111827;
+    font-size: 16px;
+  }
+
+  em {
+    margin-top: 6px;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 600;
+  }
+}
+
+.analysis-message-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.analysis-message-box {
+  padding: 14px;
+  border-radius: 10px;
+
+  h4 {
+    margin: 0 0 10px;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 20px;
+  }
+
+  li {
+    margin-bottom: 8px;
+    color: #374151;
+    line-height: 1.7;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+.highlight-box {
+  background: #f0fdf4;
+}
+
+.risk-box {
+  background: #fff7ed;
+}
+
+.analysis-disclaimer {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.is-positive {
+  color: #dc2626;
+}
+
+.is-negative {
+  color: #16a34a;
+}
+
+.is-neutral {
+  color: #4b5563;
+}
+
+@media (max-width: 900px) {
+  .analysis-summary-header {
+    flex-direction: column;
+  }
+
+  .analysis-score-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analysis-message-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
