@@ -193,3 +193,14 @@ export interface StockAnalysisSummary {
 export const getStockAnalysisSummary = (code: string) => {
   return request.get<ApiResponse<StockAnalysisSummary>>(`/api/stocks/${code}/analysis-summary`)
 }
+
+// 股票研究 Markdown 报告
+export interface StockAnalysisReport {
+  stock_code: string
+  stock_name: string
+  report: string
+}
+// 获取股票研究 Markdown 报告
+export const getStockAnalysisReport = (code: string) => {
+  return request.get<ApiResponse<StockAnalysisReport>>(`/api/stocks/${code}/analysis-report`)
+}

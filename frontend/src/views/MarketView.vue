@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import StockPriceChart from '../components/StockPriceChart.vue'
-
+import MarkdownIt from 'markdown-it'
 import {
   getIndustries,
   getStockDetail,
@@ -12,6 +12,8 @@ import {
   getStockIndicatorSummary,
   getStockVolumeSummary,
   getStockAnalysisSummary,
+  getStockAnalysisReport,
+  type StockAnalysisReport,
   type StockAnalysisSummary,
   type StockVolumeSummary,
   type StockIndicatorSummary,
@@ -63,6 +65,26 @@ const volumeSummary = ref<StockVolumeSummary | null>(null)
 
 // 当前股票的综合分析结果
 const analysisSummary = ref<StockAnalysisSummary | null>(null)
+
+// Markdown 渲染器
+// html: false 表示不直接解析报告中的 HTML
+const markdown = new MarkdownIt({
+  html: false,
+  breaks: true,
+})
+// 股票研究报告
+const analysisReport = ref<StockAnalysisReport | null>(null)
+const analysisReportLoading = ref(false)
+const analysisReportError = ref('')
+const analysisReportMessage = ref('')
+// 把 Markdown 报告转换成可以展示的 HTML
+const renderedAnalysisReport = computed(() => {
+  if (!analysisReport.value?.report) {
+    return ''
+  }
+
+  return markdown.render(analysisReport.value.report)
+})
 
 // 增加防抖
 let searchTimer: number | undefined
@@ -163,6 +185,90 @@ const formatScoreDetailValue = (detail: { dimension: string; value: string | num
   return String(detail.value)
 }
 
+// 生成股票研究报告
+const generateAnalysisReport = async () => {
+  if (!selectedStock.value?.code) {
+    analysisReportError.value = '请先选择一只股票'
+    return
+  }
+
+  analysisReportLoading.value = true
+  analysisReportError.value = ''
+  analysisReportMessage.value = ''
+
+  try {
+    const res = await getStockAnalysisReport(selectedStock.value.code)
+
+    analysisReport.value = res.data.data
+  } catch (err) {
+    analysisReportError.value = err instanceof Error ? err.message : '生成股票研究报告失败'
+  } finally {
+    analysisReportLoading.value = false
+  }
+}
+
+// 复制股票研究报告
+const copyAnalysisReport = async () => {
+  if (!analysisReport.value?.report) {
+    analysisReportError.value = '请先生成股票研究报告'
+    return
+  }
+
+  analysisReportError.value = ''
+  analysisReportMessage.value = ''
+
+  try {
+    await navigator.clipboard.writeText(analysisReport.value.report)
+
+    analysisReportMessage.value = '股票研究报告复制成功'
+
+    setTimeout(() => {
+      analysisReportMessage.value = ''
+    }, 2000)
+  } catch (err) {
+    analysisReportError.value = err instanceof Error ? err.message : '复制报告失败'
+  }
+}
+
+// 下载股票研究报告
+const downloadAnalysisReport = () => {
+  if (!analysisReport.value?.report) {
+    analysisReportError.value = '请先生成股票研究报告'
+    return
+  }
+
+  analysisReportError.value = ''
+  analysisReportMessage.value = ''
+
+  const today = new Date().toISOString().slice(0, 10)
+
+  const fileName =
+    `${analysisReport.value.stock_code}-` +
+    `${analysisReport.value.stock_name}-` +
+    `research-report-${today}.md`
+
+  const blob = new Blob([analysisReport.value.report], {
+    type: 'text/markdown;charset=utf-8',
+  })
+
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = fileName
+
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+
+  URL.revokeObjectURL(url)
+
+  analysisReportMessage.value = '股票研究报告下载成功'
+
+  setTimeout(() => {
+    analysisReportMessage.value = ''
+  }, 2000)
+}
 // 点击表格行时调用
 // 获取单只股票详情、历史价格、收益指标、技术指标和技术指标解读
 
@@ -177,6 +283,9 @@ const selectStock = async (code: string) => {
   indicatorSummary.value = null
   volumeSummary.value = null
   analysisSummary.value = null
+  analysisReport.value = null
+  analysisReportError.value = ''
+  analysisReportMessage.value = ''
 
   try {
     // 同时请求股票详情和各项分析数据
@@ -478,6 +587,41 @@ onMounted(() => {
       <p class="analysis-disclaimer">
         {{ analysisSummary.disclaimer }}
       </p>
+    </div>
+    <!-- 股票研究报告 -->
+    <div v-if="selectedStock" class="analysis-report-card">
+      <div class="analysis-report-header">
+        <div>
+          <h3>股票研究报告</h3>
+          <p>整合收益、均线、成交量和综合评分生成 Markdown 报告</p>
+        </div>
+
+        <div class="analysis-report-actions">
+          <button :disabled="analysisReportLoading" @click="generateAnalysisReport">
+            {{ analysisReportLoading ? '生成中...' : '生成研究报告' }}
+          </button>
+
+          <button :disabled="!analysisReport?.report" @click="copyAnalysisReport">复制报告</button>
+
+          <button :disabled="!analysisReport?.report" @click="downloadAnalysisReport">
+            下载报告
+          </button>
+        </div>
+      </div>
+
+      <p v-if="analysisReportError" class="error">
+        {{ analysisReportError }}
+      </p>
+
+      <p v-if="analysisReportMessage" class="report-success">
+        {{ analysisReportMessage }}
+      </p>
+
+      <div
+        v-if="analysisReport"
+        class="analysis-report-preview"
+        v-html="renderedAnalysisReport"
+      ></div>
     </div>
 
     <!-- 技术指标解读 -->
@@ -1167,6 +1311,110 @@ onMounted(() => {
 
   .analysis-message-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+.analysis-report-card {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.analysis-report-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  h3 {
+    margin: 0;
+    font-size: 20px;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: #6b7280;
+    font-size: 14px;
+  }
+}
+
+.analysis-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.report-success {
+  margin-top: 14px;
+  color: #15803d;
+}
+
+.analysis-report-preview {
+  margin-top: 18px;
+  padding: 20px;
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #111827;
+  line-height: 1.8;
+
+  :deep(h1) {
+    margin: 0 0 20px;
+    font-size: 26px;
+  }
+
+  :deep(h2) {
+    margin: 28px 0 14px;
+    font-size: 20px;
+  }
+
+  :deep(p) {
+    margin: 10px 0;
+  }
+
+  :deep(ul),
+  :deep(ol) {
+    padding-left: 24px;
+  }
+
+  :deep(li) {
+    margin-bottom: 8px;
+  }
+
+  :deep(table) {
+    width: 100%;
+    margin: 14px 0;
+    border-collapse: collapse;
+  }
+
+  :deep(th),
+  :deep(td) {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    text-align: left;
+  }
+
+  :deep(th) {
+    background: #eef2ff;
+    font-weight: 600;
+  }
+
+  :deep(strong) {
+    font-weight: 700;
+  }
+}
+
+@media (max-width: 900px) {
+  .analysis-report-header {
+    flex-direction: column;
   }
 }
 </style>

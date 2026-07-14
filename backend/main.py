@@ -24,6 +24,8 @@ from data.stocks import (
     paginate_stocks,
 )
 
+from services.stock_report import generate_stock_analysis_report
+
 from utils.response import error_response, success_response
 
 
@@ -294,3 +296,39 @@ def get_stock_analysis_summary(code: str):
     analysis["industry"] = stock["industry"]
 
     return success_response(data=analysis)
+
+# 股票研究 Markdown 报告接口
+# 根据股票综合分析结果生成结构化研究报告
+@app.get("/api/stocks/{code}/analysis-report")
+def get_stock_analysis_report(code: str):
+    # 查询股票基本信息
+    stock = find_stock_by_code(code)
+
+    if not stock:
+        raise HTTPException(
+            status_code=404,
+            detail="股票不存在",
+        )
+
+    # 获取股票综合分析结果
+    analysis = get_stock_analysis_summary_by_code(code)
+
+    if not analysis:
+        raise HTTPException(
+            status_code=404,
+            detail="该股票没有足够的数据，无法生成研究报告",
+        )
+
+    # 生成 Markdown 报告
+    report = generate_stock_analysis_report(
+        stock=stock,
+        analysis=analysis,
+    )
+
+    return success_response(
+        data={
+            "stock_code": stock["code"],
+            "stock_name": stock["name"],
+            "report": report,
+        }
+    )
