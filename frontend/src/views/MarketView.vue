@@ -10,6 +10,8 @@ import {
   getStockMetrics,
   getStockIndicators,
   getStockIndicatorSummary,
+  getStockVolumeSummary,
+  type StockVolumeSummary,
   type StockIndicatorSummary,
   type StockIndicatorItem,
   type StockItem,
@@ -54,6 +56,9 @@ const stockIndicators = ref<StockIndicatorItem[]>([])
 // 技术指标解读数据
 const indicatorSummary = ref<StockIndicatorSummary | null>(null)
 
+// 当前股票的成交量解读
+const volumeSummary = ref<StockVolumeSummary | null>(null)
+
 // 增加防抖
 let searchTimer: number | undefined
 
@@ -92,28 +97,57 @@ const fetchIndustries = async () => {
   }
 }
 
+// 格式化成交量，避免直接展示很长的数字
+const formatVolume = (value: number | null) => {
+  if (value === null) {
+    return '暂无'
+  }
+
+  if (value >= 100000000) {
+    return `${(value / 100000000).toFixed(2)} 亿`
+  }
+
+  if (value >= 10000) {
+    return `${(value / 10000).toFixed(2)} 万`
+  }
+
+  return String(value)
+}
+
+// 格式化涨跌幅
+const formatPercentage = (value: number | null) => {
+  if (value === null) {
+    return '暂无'
+  }
+
+  const prefix = value > 0 ? '+' : ''
+
+  return `${prefix}${value.toFixed(2)}%`
+}
+
 // 点击表格行时调用
 // 获取单只股票详情、历史价格、收益指标、技术指标和技术指标解读
-
 const selectStock = async (code: string) => {
   detailLoading.value = true
   detailError.value = ''
 
-  // 清空上一次股票的数据，避免切换股票时短暂显示旧数据
+  // 清空上一只股票的数据，避免切换时短暂显示旧内容
   stockPrices.value = []
   stockMetrics.value = null
   stockIndicators.value = []
   indicatorSummary.value = null
+  volumeSummary.value = null
 
   try {
-    // 同时请求多个接口，提高页面加载速度
-    const [detailRes, pricesRes, metricsRes, indicatorsRes, indicatorSummaryRes] =
+    // 同时请求多个接口，减少页面等待时间
+    const [detailRes, pricesRes, metricsRes, indicatorsRes, indicatorSummaryRes, volumeSummaryRes] =
       await Promise.all([
         getStockDetail(code),
         getStockPrices(code),
         getStockMetrics(code),
         getStockIndicators(code),
         getStockIndicatorSummary(code),
+        getStockVolumeSummary(code),
       ])
 
     selectedStock.value = detailRes.data.data
@@ -121,6 +155,7 @@ const selectStock = async (code: string) => {
     stockMetrics.value = metricsRes.data.data
     stockIndicators.value = indicatorsRes.data.data
     indicatorSummary.value = indicatorSummaryRes.data.data
+    volumeSummary.value = volumeSummaryRes.data.data
   } catch (err) {
     detailError.value = err instanceof Error ? err.message : '获取股票详情失败'
   } finally {
@@ -366,11 +401,93 @@ onMounted(() => {
 
       <p class="risk-tip">说明：该解读仅基于均线关系生成，用于学习和辅助观察，不构成投资建议。</p>
     </div>
+    <!-- 成交量解读 -->
+    <div v-if="volumeSummary" class="volume-summary-card">
+      <div class="volume-summary-header">
+        <div>
+          <h3>成交量解读</h3>
+          <p>{{ volumeSummary.trade_date }}</p>
+        </div>
+
+        <span
+          class="volume-signal-tag"
+          :class="{
+            'is-up': volumeSummary.price_status === '上涨',
+            'is-down': volumeSummary.price_status === '下跌',
+            'is-flat': volumeSummary.price_status === '平盘',
+          }"
+        >
+          {{ volumeSummary.signal }}
+        </span>
+      </div>
+
+      <p class="volume-summary-text">
+        {{ volumeSummary.summary }}
+      </p>
+
+      <div class="volume-summary-values">
+        <div class="volume-value-item">
+          <span>价格状态</span>
+          <strong>{{ volumeSummary.price_status }}</strong>
+        </div>
+
+        <div class="volume-value-item">
+          <span>成交量状态</span>
+          <strong>{{ volumeSummary.volume_status }}</strong>
+        </div>
+
+        <div class="volume-value-item">
+          <span>当日涨跌幅</span>
+          <strong
+            :class="{
+              'value-up': (volumeSummary.change_pct ?? 0) > 0,
+              'value-down': (volumeSummary.change_pct ?? 0) < 0,
+            }"
+          >
+            {{ formatPercentage(volumeSummary.change_pct) }}
+          </strong>
+        </div>
+
+        <div class="volume-value-item">
+          <span>最新成交量</span>
+          <strong>{{ formatVolume(volumeSummary.latest_volume) }}</strong>
+        </div>
+
+        <div class="volume-value-item">
+          <span>前 5 日平均成交量</span>
+          <strong>{{ formatVolume(volumeSummary.average_volume_5d) }}</strong>
+        </div>
+
+        <div class="volume-value-item">
+          <span>量比</span>
+          <strong>
+            {{
+              volumeSummary.volume_ratio === null
+                ? '暂无'
+                : `${volumeSummary.volume_ratio.toFixed(2)} 倍`
+            }}
+          </strong>
+        </div>
+      </div>
+
+      <div class="volume-knowledge">
+        <strong>如何理解：</strong>
+        <span>
+          量比表示最新成交量相当于前 5 个交易日平均成交量的多少倍。 大于 1.2 倍视为放量，小于 0.8
+          倍视为缩量。
+        </span>
+      </div>
+
+      <p class="risk-tip">
+        说明：该结果只根据最近价格和成交量变化生成，用于学习和辅助观察，不构成投资建议。
+      </p>
+    </div>
     <!-- 价格走势 -->
     <div v-if="stockPrices.length" class="price-chart-section">
       <h3>价格走势</h3>
       <StockPriceChart :prices="stockPrices" :indicators="stockIndicators" />
     </div>
+
     <!-- 暂无数据 -->
     <p v-if="selectedStock && !stockPrices.length && !detailLoading" class="empty">
       暂无历史价格数据
@@ -636,6 +753,112 @@ onMounted(() => {
   margin: 12px 0 0;
   color: #6b7280;
   font-size: 13px;
+}
+
+.volume-summary-card {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.volume-summary-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+
+  h3 {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: #6b7280;
+    font-size: 13px;
+  }
+}
+
+.volume-signal-tag {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+
+  &.is-up {
+    color: #b91c1c;
+    background: #fee2e2;
+  }
+
+  &.is-down {
+    color: #15803d;
+    background: #dcfce7;
+  }
+
+  &.is-flat {
+    color: #4b5563;
+    background: #e5e7eb;
+  }
+}
+
+.volume-summary-text {
+  margin: 14px 0;
+  color: #374151;
+  line-height: 1.7;
+}
+
+.volume-summary-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.volume-value-item {
+  padding: 12px;
+  border-radius: 8px;
+  background: #ffffff;
+
+  span {
+    display: block;
+    margin-bottom: 6px;
+    color: #6b7280;
+    font-size: 13px;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 16px;
+  }
+
+  .value-up {
+    color: #dc2626;
+  }
+
+  .value-down {
+    color: #16a34a;
+  }
+}
+
+.volume-knowledge {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #374151;
+  font-size: 14px;
+  line-height: 1.7;
+
+  strong {
+    color: #1d4ed8;
+  }
+}
+
+@media (max-width: 900px) {
+  .volume-summary-values {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 @media (max-width: 900px) {
   .indicator-values {

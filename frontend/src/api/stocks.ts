@@ -146,3 +146,23 @@ export interface StockIndicatorSummary {
 export const getStockIndicatorSummary = (code: string) => {
   return request.get<ApiResponse<StockIndicatorSummary>>(`/api/stocks/${code}/indicator-summary`)
 }
+
+// 股票成交量解读
+export interface StockVolumeSummary {
+  trade_date: string
+  signal: string
+  price_status: string
+  volume_status: string
+  summary: string
+  latest_close: number | null
+  previous_close: number | null
+  change_pct: number | null
+  latest_volume: number | null
+  average_volume_5d: number | null
+  volume_ratio: number | null
+}
+
+// 获取股票成交量解读
+export const getStockVolumeSummary = (code: string) => {
+  return request.get<ApiResponse<StockVolumeSummary>>(`/api/stocks/${code}/volume-summary`)
+}
