@@ -14,6 +14,7 @@ from data.csv_loader import (
     get_stock_indicators_by_code,
     get_stock_indicator_summary_by_code,
     get_stock_volume_summary_by_code,
+    get_stock_analysis_summary_by_code,
 )
 
 from data.stocks import (
@@ -265,3 +266,31 @@ def get_stock_volume_summary(code: str):
         )
 
     return success_response(data=volume_summary)
+
+# 股票综合分析接口
+# 汇总收益指标、均线趋势和成交量关系，生成结构化分析结论
+@app.get("/api/stocks/{code}/analysis-summary")
+def get_stock_analysis_summary(code: str):
+    # 先确认项目股票列表中存在该股票
+    stock = find_stock_by_code(code)
+
+    if not stock:
+        raise HTTPException(
+            status_code=404,
+            detail="股票不存在",
+        )
+
+    # 生成综合分析结果
+    analysis = get_stock_analysis_summary_by_code(code)
+
+    if not analysis:
+        raise HTTPException(
+            status_code=404,
+            detail="该股票没有足够的数据，无法生成综合分析",
+        )
+
+    # 将股票名称和行业补充进结果
+    analysis["stock_name"] = stock["name"]
+    analysis["industry"] = stock["industry"]
+
+    return success_response(data=analysis)

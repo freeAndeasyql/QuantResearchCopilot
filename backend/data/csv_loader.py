@@ -711,3 +711,227 @@ def get_stock_volume_summary_by_code(stock_code: str):
             else round(volume_ratio, 2)
         ),
     }
+
+# 汇总股票收益、均线和成交量信息，生成综合分析结论
+def get_stock_analysis_summary_by_code(stock_code: str):
+    # 获取现有三个模块的分析结果
+    metrics = get_stock_metrics_by_code(stock_code, limit=30)
+    indicator_summary = get_stock_indicator_summary_by_code(stock_code)
+    volume_summary = get_stock_volume_summary_by_code(stock_code)
+
+    # 如果三个模块都没有数据，就无法生成综合分析
+    if not metrics and not indicator_summary and not volume_summary:
+        return None
+
+    # 综合评分
+    # 正数表示相对偏强，负数表示相对偏弱
+    # 该评分只是当前项目定义的学习规则
+    score = 0
+
+    # 用于记录每一项评分依据
+    score_details = []
+
+    # 积极信号
+    highlights = []
+
+    # 风险或需要继续观察的内容
+    risks = []
+
+    # --------------------------------------------------
+    # 第一部分：均线趋势评分
+    # --------------------------------------------------
+    indicator_trend = (
+        indicator_summary.get("trend")
+        if indicator_summary
+        else "暂无"
+    )
+
+    trend_score_map = {
+        "偏强": 2,
+        "震荡偏强": 1,
+        "震荡": 0,
+        "震荡偏弱": -1,
+        "偏弱": -2,
+        "数据不足": 0,
+    }
+
+    trend_score = trend_score_map.get(indicator_trend, 0)
+    score += trend_score
+
+    score_details.append(
+        {
+            "dimension": "均线趋势",
+            "value": indicator_trend,
+            "score": trend_score,
+        }
+    )
+
+    if indicator_trend in {"偏强", "震荡偏强"}:
+        highlights.append(
+            f"当前均线趋势为“{indicator_trend}”，价格表现相对较强。"
+        )
+    elif indicator_trend in {"偏弱", "震荡偏弱"}:
+        risks.append(
+            f"当前均线趋势为“{indicator_trend}”，需要关注短期走势压力。"
+        )
+
+    # --------------------------------------------------
+    # 第二部分：区间收益评分
+    # --------------------------------------------------
+    period_return = (
+        metrics.get("period_return")
+        if metrics
+        else None
+    )
+
+    return_score = 0
+
+    if period_return is not None:
+        if period_return > 0:
+            return_score = 1
+            highlights.append(
+                f"最近 {metrics.get('period_days', 30)} 个交易日"
+                f"区间收益率为 {period_return:.2f}%，整体取得正收益。"
+            )
+        elif period_return < 0:
+            return_score = -1
+            risks.append(
+                f"最近 {metrics.get('period_days', 30)} 个交易日"
+                f"区间收益率为 {period_return:.2f}%，整体表现为负收益。"
+            )
+        else:
+            highlights.append(
+                "近期区间收益率接近 0，价格整体变化不大。"
+            )
+
+    score += return_score
+
+    score_details.append(
+        {
+            "dimension": "区间收益",
+            "value": period_return,
+            "score": return_score,
+        }
+    )
+
+    # --------------------------------------------------
+    # 第三部分：成交量与价格关系评分
+    # --------------------------------------------------
+    volume_signal = (
+        volume_summary.get("signal")
+        if volume_summary
+        else "暂无"
+    )
+
+    volume_score_map = {
+        "放量上涨": 1,
+        "放量下跌": -1,
+        "缩量上涨": 0,
+        "缩量下跌": 0,
+        "价格平稳": 0,
+        "数据不足": 0,
+    }
+
+    volume_score = volume_score_map.get(volume_signal, 0)
+    score += volume_score
+
+    score_details.append(
+        {
+            "dimension": "量价关系",
+            "value": volume_signal,
+            "score": volume_score,
+        }
+    )
+
+    if volume_signal == "放量上涨":
+        highlights.append(
+            "最新交易日出现放量上涨，市场参与度有所提升。"
+        )
+    elif volume_signal == "放量下跌":
+        risks.append(
+            "最新交易日出现放量下跌，卖出压力可能有所增强。"
+        )
+    elif volume_signal == "缩量上涨":
+        risks.append(
+            "最新交易日为缩量上涨，上涨持续性仍需继续观察。"
+        )
+    elif volume_signal == "缩量下跌":
+        highlights.append(
+            "最新交易日为缩量下跌，市场抛售活跃度相对有限。"
+        )
+
+    # --------------------------------------------------
+    # 根据最终分数生成综合观察结论
+    # --------------------------------------------------
+    if score >= 3:
+        overall_view = "偏强"
+        summary = (
+            "近期收益、均线趋势和量价关系综合表现相对偏强，"
+            "但仍需结合市场环境、公司基本面和风险承受能力继续观察。"
+        )
+    elif score >= 1:
+        overall_view = "震荡偏强"
+        summary = (
+            "当前多个指标表现略偏积极，但尚未形成全面强势状态，"
+            "短期可能处于震荡偏强阶段。"
+        )
+    elif score == 0:
+        overall_view = "中性观察"
+        summary = (
+            "当前积极信号和风险信号相对均衡，"
+            "暂未形成特别明确的趋势方向，适合继续观察。"
+        )
+    elif score >= -2:
+        overall_view = "震荡偏弱"
+        summary = (
+            "当前部分指标表现偏弱，价格可能处于震荡偏弱阶段，"
+            "需要关注后续趋势和成交量变化。"
+        )
+    else:
+        overall_view = "偏弱"
+        summary = (
+            "近期收益、均线趋势或量价关系整体偏弱，"
+            "需要重点关注下行风险及趋势是否进一步恶化。"
+        )
+
+    # 如果没有积极信号，补充默认内容
+    if not highlights:
+        highlights.append(
+            "当前暂未识别出特别明显的积极信号。"
+        )
+
+    # 如果没有风险提示，补充通用风险
+    if not risks:
+        risks.append(
+            "技术指标仅反映历史价格和成交量，不能预测未来走势。"
+        )
+
+    # 优先使用均线接口中的最新交易日
+    trade_date = ""
+
+    if indicator_summary:
+        trade_date = indicator_summary.get("trade_date", "")
+    elif volume_summary:
+        trade_date = volume_summary.get("trade_date", "")
+    elif metrics:
+        trade_date = metrics.get("latest_trade_date", "")
+
+    return {
+        "stock_code": stock_code,
+        "trade_date": trade_date,
+        "overall_view": overall_view,
+        "score": score,
+        "summary": summary,
+        "highlights": highlights,
+        "risks": risks,
+        "score_details": score_details,
+        "dimensions": {
+            "metrics": metrics,
+            "indicator_summary": indicator_summary,
+            "volume_summary": volume_summary,
+        },
+        "disclaimer": (
+            "本结论仅基于历史行情、均线和成交量规则生成，"
+            "用于学习和辅助观察，不构成任何投资建议。"
+        ),
+    }
